@@ -100,8 +100,10 @@ input, select, textarea { font: inherit; color: inherit; }
 /* Designed placeholder route, shown until (or instead of) the real map. */
 .trip-tile .bg::before { content: ''; position: absolute; inset: 0; background: linear-gradient(66deg, transparent 26%, rgba(255,255,255,.28) 26% 28%, transparent 28%, transparent 70%, rgba(255,255,255,.28) 70% 72%, transparent 72%); }
 .trip-tile .bg::after { content: ''; position: absolute; left: 26%; top: 30%; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(255,255,255,.28), 190px 40px 0 0 #fff, 190px 40px 0 5px rgba(255,255,255,.28); }
-.trip-tile .map { position: absolute; inset: 0; }
-.trip-tile .map canvas { filter: grayscale(1) contrast(1.15); }
+.trip-tile .map, .hero .map { position: absolute; inset: 0; overflow: hidden; }
+.trip-tile .map img, .hero .map img { filter: grayscale(1) contrast(1.15); max-width: none; }
+.map-overlay { position: absolute; inset: 0; pointer-events: none; }
+.map-credit { position: absolute; right: 10px; bottom: 6px; font-size: 9.5px; color: rgba(255,255,255,.72); text-decoration: none; font-weight: 600; z-index: 2; }
 .trip-tile .tint { position: absolute; inset: 0; background: linear-gradient(135deg, #2E6BD6, #6C63FF 52%, #C23B78); mix-blend-mode: multiply; opacity: .92; pointer-events: none; }
 .trip-tile .grid {
   position: absolute; inset: 0; pointer-events: none;
@@ -218,6 +220,9 @@ input, select, textarea { font: inherit; color: inherit; }
 .chip-btn .ms { font-size: 17px; color: var(--muted); }
 .chip-btn .ms.acc { color: var(--acc); }
 .stop-card .extra { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.leg-card.mini { margin-top: 6px; box-shadow: none; border: 1px solid var(--hair-2); cursor: pointer; }
+.leg-card.mini .mini-ic { font-size: 18px; color: var(--ok); }
+.leg-card.mini.leave-soon { box-shadow: inset 4px 0 0 var(--acc); }
 
 /* ---------- Tab bar ---------- */
 .tabbar {
@@ -256,8 +261,6 @@ input, select, textarea { font: inherit; color: inherit; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
 .hero { position: absolute; inset: 0 0 auto 0; height: 46%; overflow: hidden; color: #fff; background: linear-gradient(160deg, #6C63FF, #9A8CFF); }
-.hero .map { position: absolute; inset: 0; }
-.hero .map canvas { filter: grayscale(1) contrast(1.1); }
 .hero .tint { position: absolute; inset: 0; background: linear-gradient(160deg, #6C63FF, #9A8CFF); mix-blend-mode: multiply; opacity: .9; }
 .hero .shade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(20,16,40,.55), rgba(20,16,40,.15) 60%, rgba(20,16,40,.6)); }
 .hero .title { position: absolute; left: 24px; right: 24px; top: calc(var(--safe-top) + 56px); }

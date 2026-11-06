@@ -97,11 +97,16 @@ without losing it. The same reducer replays the outbox over the last cached copy
 - **Icons:** 50-odd Material Symbols generated into inline SVG (`scripts/build-icons.mjs`), about
   12 KB gzipped instead of a multi-megabyte icon font, with no flash of ligature text.
 - **Fonts:** self-hosted via Fontsource, so there is no third-party request and they work offline.
-- **Maps:** MapLibre with OpenFreeMap tiles: open data, no key, no account. The designed
-  gradient shows until tiles load, and stays if they don't.
+- **Maps:** a static map built from 4–6 OpenStreetMap image tiles placed by hand, with the route
+  and pins drawn as SVG (`components/MapView.tsx`). The first version used a full vector map
+  engine; it was about 1 MB plus a background worker and felt slow on phones, for a map nobody
+  pans. The static version needs no key, appears almost at once, and is cached for offline use.
+  It follows the OSM tile policy: visible credit, a Referer, caching. The designed gradient shows
+  until the tiles arrive, and stays if they don't.
 - **Place search:** Photon (OpenStreetMap). Time zones come from `tz-lookup` on the device, so a
   stop's zone never depends on a network call.
-- **Security headers:** strict CSP limited to the four hosts the app talks to, no referrer, and
+- **Security headers:** strict CSP limited to the hosts the app talks to, an origin-only referrer
+  (OpenStreetMap needs one; trip tokens in paths are never sent), and
   `frame-ancestors 'none'`.
 - **The demo** runs entirely on the device, always mid-trip (dates are relative to now), and
   re-seeds after 6 hours. Reviewers can't change it for each other.

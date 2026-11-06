@@ -2,7 +2,7 @@
 // Pages: network first, cached copy when offline. Static assets and fonts: cache first.
 // Never cached: /api/* (scans, rates) and Supabase calls — those go to the network or fail.
 
-const VERSION = 'passage-v1';
+const VERSION = 'passage-v2';
 const SHELL = ['/', '/t/demo', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
   if (url.pathname.startsWith('/api/') || url.hostname.endsWith('supabase.co') || url.hostname === 'photon.komoot.io') return;
 
   const cacheFirst = url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/') ||
-    url.hostname === 'tiles.openfreemap.org';
+    url.hostname === 'tile.openstreetmap.org';
 
   if (cacheFirst) {
     e.respondWith(

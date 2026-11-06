@@ -189,10 +189,30 @@ function StopCard({ stop, stays, others, here, live, h }: {
           <div className="extra">
             {others.slice(0, 3).map(o => {
               const s = live(o);
+              // A booking that is live right now gets the full treatment: times, ring, countdown.
+              if (s) {
+                return (
+                  <div key={o.id} className={`leg-card mini ${s.state}`} role="button" tabIndex={0}
+                    onClick={e => { e.stopPropagation(); h.openReservation(o); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); h.openReservation(o); } }}>
+                    <div className="row">
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Icon name={TYPE_ICON[o.type]} fill className="mini-ic" />
+                        <div style={{ minWidth: 0 }}>
+                          <div className="times">{fmtTime(o.startLocal)}{o.endLocal ? ` → ${fmtTime(o.endLocal)}` : ''}</div>
+                          <div className="sub">{o.title}</div>
+                        </div>
+                      </div>
+                      <span className={o.status === 'booked' ? 'okdot' : 'pendot'} aria-label={o.status} />
+                    </div>
+                    <LiveLine s={s} r={o} onRebook={() => h.openReservation(o)} />
+                  </div>
+                );
+              }
               return (
                 <div key={o.id} className={`stay ${o.status}`} style={{ marginTop: 0 }}>
                   <Icon name={TYPE_ICON[o.type]} fill />
-                  <span>{o.title} · {fmtTime(o.startLocal)}{s && s.state !== 'on-track' ? ` · ${s.state === 'leave-soon' ? `leave in ${fmtDuration(s.minutesToLeave)}` : s.state === 'at-risk' ? 'leave now' : 'missed'}` : ''}</span>
+                  <span>{o.title} · {fmtTime(o.startLocal)}</span>
                 </div>
               );
             })}
