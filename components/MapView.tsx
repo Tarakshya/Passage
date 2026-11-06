@@ -23,6 +23,7 @@ export function MapView({ pins, route = true, zoom }: { pins: Pin[]; route?: boo
     let cancelled = false;
     void import('maplibre-gl').then(ml => {
       if (cancelled || !el.current) return;
+      ml.setWorkerUrl('/maplibre-gl-worker.mjs'); // copied into public/ on install
       const m = new ml.Map({
         container: el.current, style: STYLE, interactive: false,
         attributionControl: { compact: true },

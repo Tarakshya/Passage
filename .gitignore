@@ -11,3 +11,4 @@ evals/cases/*.pdf
 evals/results-*.json
 .DS_Store
 .vercel
+public/maplibre-gl-worker.mjs

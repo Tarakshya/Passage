@@ -119,8 +119,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .trip-tile .flags { font-size: 17px; white-space: nowrap; margin-left: 9px; }
 .round-glass { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.22); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; color: #fff; }
 .round-glass .ms { font-size: 22px; }
-.stat-chips { display: flex; gap: 7px; margin-top: 11px; flex-wrap: wrap; }
-.stat-chip { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,.16); border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; }
+.stat-chips { display: flex; gap: 6px; margin-top: 11px; flex-wrap: wrap; }
+.stat-chip { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,.16); border-radius: 9px; padding: 6px 8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .stat-chip .ms { font-size: 15px; }
 .stat-chip.ok { background: rgba(46,158,126,.9); }
 .live-banner {

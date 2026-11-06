@@ -2,14 +2,15 @@
   "name": "passage",
   "version": "1.0.0",
   "private": true,
-  "description": "Passage — a shared, live trip planner. Portfolio product by Tarakshya Mehrish.",
+  "description": "Passage \u2014 a shared, live trip planner. Portfolio product by Tarakshya Mehrish.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "eval:scan": "tsx scripts/eval-scan.ts"
+    "eval:scan": "tsx scripts/eval-scan.ts",
+    "postinstall": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.4.0",
