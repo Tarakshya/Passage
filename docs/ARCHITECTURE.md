@@ -97,10 +97,12 @@ without losing it. The same reducer replays the outbox over the last cached copy
 - **Icons:** 50-odd Material Symbols generated into inline SVG (`scripts/build-icons.mjs`), about
   12 KB gzipped instead of a multi-megabyte icon font, with no flash of ligature text.
 - **Fonts:** self-hosted via Fontsource, so there is no third-party request and they work offline.
-- **Maps:** a static map built from 4–6 OpenStreetMap image tiles placed by hand, with the route
-  and pins drawn as SVG (`components/MapView.tsx`). The first version used a full vector map
-  engine; it was about 1 MB plus a background worker and felt slow on phones, for a map nobody
-  pans. The static version needs no key, appears almost at once, and is cached for offline use.
+- **Maps:** the trip tile shows a street map of the city you're in today (`mapStop` in
+  `lib/trip.ts`): the first stop before the trip, the last after it, and on a travel day it
+  switches once your first booking out has left. It is a static map made of the 2–6
+  OpenStreetMap image tiles that cover the box (`components/MapView.tsx`). The first version
+  used a full vector map engine: about 1 MB plus a background worker, slow on phones, for a map
+  nobody pans. The static version needs no key, appears almost at once, and is cached offline.
   It follows the OSM tile policy: visible credit, a Referer, caching. The designed gradient shows
   until the tiles arrive, and stays if they don't.
 - **Place search:** Photon (OpenStreetMap). Time zones come from `tz-lookup` on the device, so a

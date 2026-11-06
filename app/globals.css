@@ -97,12 +97,8 @@ input, select, textarea { font: inherit; color: inherit; }
   box-shadow: var(--shadow-tile); margin: 2px 0 4px; color: #fff; isolation: isolate;
 }
 .trip-tile .bg { position: absolute; inset: 0; background: linear-gradient(135deg, #2E6BD6, #6C63FF 52%, #C23B78); }
-/* Designed placeholder route, shown until (or instead of) the real map. */
-.trip-tile .bg::before { content: ''; position: absolute; inset: 0; background: linear-gradient(66deg, transparent 26%, rgba(255,255,255,.28) 26% 28%, transparent 28%, transparent 70%, rgba(255,255,255,.28) 70% 72%, transparent 72%); }
-.trip-tile .bg::after { content: ''; position: absolute; left: 26%; top: 30%; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(255,255,255,.28), 190px 40px 0 0 #fff, 190px 40px 0 5px rgba(255,255,255,.28); }
 .trip-tile .map, .hero .map { position: absolute; inset: 0; overflow: hidden; }
 .trip-tile .map img, .hero .map img { filter: grayscale(1) contrast(1.15); max-width: none; }
-.map-overlay { position: absolute; inset: 0; pointer-events: none; }
 .map-credit { position: absolute; right: 10px; bottom: 6px; font-size: 9.5px; color: rgba(255,255,255,.72); text-decoration: none; font-weight: 600; z-index: 2; }
 .trip-tile .tint { position: absolute; inset: 0; background: linear-gradient(135deg, #2E6BD6, #6C63FF 52%, #C23B78); mix-blend-mode: multiply; opacity: .92; pointer-events: none; }
 .trip-tile .grid {

@@ -2,7 +2,7 @@
 
 import type { LiveStatus } from '@/lib/live-status';
 import { instantToZoned, fmtRange, daysBetween, fmtTime, fmtDuration } from '@/lib/time';
-import { bookingProgress, flag, sortedStops, timeline, tripCountdown, tripDates, type TimelineItem } from '@/lib/trip';
+import { bookingProgress, flag, mapStop, sortedStops, timeline, tripCountdown, tripDates, type TimelineItem } from '@/lib/trip';
 import type { Leg, Reservation, Stop, Trip } from '@/lib/types';
 import { MapView } from './MapView';
 import { Icon, TYPE_ICON } from './ui';
@@ -44,11 +44,12 @@ export function TripTile({ trip, now, expanded, onToggle, urgent }: {
   const stops = sortedStops(trip);
   const prog = bookingProgress(trip);
   const flags = [...new Set(stops.map(s => s.country))].map(flag).join('');
+  const city = mapStop(trip, now);
   const year = dates ? dates.end.slice(0, 4) : '';
   return (
     <section className="trip-tile" aria-label={`${trip.name} trip`}>
       <div className="bg" />
-      <MapView pins={stops.map(s => ({ lat: s.lat, lng: s.lng }))} />
+      {city && <MapView center={{ lat: city.lat, lng: city.lng }} zoom={12} focusY={0.38} />}
       <div className="grid" />
       <div className="scrim" />
       <div className="top">

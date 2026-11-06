@@ -60,7 +60,7 @@ export function StopSheet({ trip, stop, live, onClose, onOpen, onAdd }: {
       dark
       hero={
         <div className="hero">
-          <MapView pins={[{ lat: stop.lat, lng: stop.lng }]} route={false} zoom={13} pad={{ top: 0, right: 0, bottom: 0, left: 0 }} />
+          <MapView center={{ lat: stop.lat, lng: stop.lng }} zoom={13} />
               <div className="shade" />
           <div className="title">
             <div className="k">STOP {String(stop.order).padStart(2, '0')} · {fmtRange(stop.arrive, stop.depart)}</div>

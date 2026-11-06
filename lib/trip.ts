@@ -114,3 +114,16 @@ export function flag(country: string): string {
     .toUpperCase()
     .replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
 }
+
+/**
+ * The city the trip tile's map shows: where you are today. Before the trip, the first stop;
+ * after it, the last; on a travel day, whichever side of the departure you're on.
+ */
+export function mapStop(trip: Trip, now: Date): Stop | undefined {
+  const stops = sortedStops(trip);
+  if (!stops.length) return undefined;
+  const here = currentStop(trip, now);
+  if (here) return here;
+  const today = todayIn(stops[0].tz, now);
+  return today < stops[0].arrive ? stops[0] : stops.at(-1);
+}
