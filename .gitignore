@@ -1,0 +1,13 @@
+node_modules
+.next
+.env*.local
+.env
+*.tsbuildinfo
+next-env.d.ts
+evals/cases/*.png
+evals/cases/*.jpg
+evals/cases/*.jpeg
+evals/cases/*.pdf
+evals/results-*.json
+.DS_Store
+.vercel

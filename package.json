@@ -1,0 +1,35 @@
+{
+  "name": "passage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Passage — a shared, live trip planner. Portfolio product by Tarakshya Mehrish.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "eval:scan": "tsx scripts/eval-scan.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.4.0",
+    "@fontsource/hanken-grotesk": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@supabase/supabase-js": "2.118.0",
+    "maplibre-gl": "^6.16.0",
+    "next": "16.4.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "tz-lookup": "^6.1.25",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@material-symbols/svg-400": "^0.48.2",
+    "@types/node": "22.15.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "tsx": "4.20.3",
+    "typescript": "5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "booking",
+  "expected": {
+    "type": "train",
+    "service": "IC 548",
+    "startLocal": "2026-07-24T09:57",
+    "endLocal": "2026-07-24T12:50",
+    "currency": "EUR"
+  }
+}
