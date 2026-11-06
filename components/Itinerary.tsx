@@ -157,8 +157,6 @@ function StopCard({ stop, stays, others, here, live, h }: {
   const nights = daysBetween(stop.arrive, stop.depart);
   const empty = !booked.length && !pending.length;
   const stay = booked[0] ?? pending[0];
-  // A deterministic contour angle per stop, as in the design.
-  const at = 42 + ((stop.order * 7) % 12);
   return (
     <div
       className={`stop-card ${empty ? 'empty' : ''}`}
@@ -168,8 +166,10 @@ function StopCard({ stop, stays, others, here, live, h }: {
       onClick={() => h.openStop(stop)}
       onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), h.openStop(stop))}
     >
+      {/* A fixed street map of this city; the grid shows until it loads, or if it can't. */}
       <div className="tex" />
-      <div className="contour" style={{ background: `linear-gradient(64deg, transparent ${at}%, var(--grid) ${at}% ${at + 1.6}%, transparent ${at + 1.6}%)` }} />
+      <MapView center={{ lat: stop.lat, lng: stop.lng }} zoom={13} focusY={0.42} tint={false} lazy />
+      <div className="paper-fade" />
       <span className="idx">{String(stop.order).padStart(2, '0')}</span>
       <div className="status">
         {here && <span className="pill here">You’re here</span>}

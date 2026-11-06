@@ -43,7 +43,13 @@ export function tilesFor(center: LatLng, z: number, w: number, h: number, focusY
   return out;
 }
 
-export function MapView({ center, zoom = 12, focusY = 0.5 }: { center: LatLng; zoom?: number; focusY?: number }) {
+/**
+ * `tint` adds the coloured wash used on the dark trip tile and stop hero; city cards leave it
+ * off and fade the map under their own paper overlay. `lazy` defers tiles until near the screen.
+ */
+export function MapView({ center, zoom = 12, focusY = 0.5, tint = true, lazy = false }: {
+  center: LatLng; zoom?: number; focusY?: number; tint?: boolean; lazy?: boolean;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [loaded, setLoaded] = useState(0);
@@ -71,11 +77,11 @@ export function MapView({ center, zoom = 12, focusY = 0.5 }: { center: LatLng; z
     <>
       <div ref={el} className="map" aria-hidden="true" style={{ opacity: ready ? 1 : 0, transition: 'opacity .35s' }}>
         {tiles.map(t => (
-          <img key={t.key} src={t.src} alt="" width={TILE} height={TILE} decoding="async" draggable={false}
+          <img key={t.key} src={t.src} alt="" width={TILE} height={TILE} decoding="async" draggable={false} loading={lazy ? 'lazy' : 'eager'}
             onLoad={() => setLoaded(c => c + 1)} style={{ position: 'absolute', left: t.left, top: t.top, width: TILE, height: TILE }} />
         ))}
       </div>
-      <div className="tint" style={{ opacity: ready ? undefined : 0 }} aria-hidden="true" />
+      {tint && <div className="tint" style={{ opacity: ready ? undefined : 0 }} aria-hidden="true" />}
       {ready && (
         <a className="map-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>
           © OpenStreetMap

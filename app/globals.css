@@ -194,7 +194,13 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 .stop-card.empty { border-style: dashed; border-color: var(--dash); box-shadow: none; }
 .stop-card .tex { position: absolute; inset: 0; opacity: .5; pointer-events: none; background-image: repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 26px), repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 26px); }
-.stop-card .contour { position: absolute; inset: 0; pointer-events: none; }
+.stop-card .map { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.stop-card .map img { filter: grayscale(1) contrast(1.05); opacity: .8; max-width: none; }
+.stop-card.empty .map img { opacity: .6; }
+/* Paper wash: the map shows through at the top, text sits on near-solid paper at the bottom. */
+.stop-card .paper-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(255,255,255,.96) 0%, rgba(255,255,255,.84) 45%, rgba(255,255,255,.15) 100%); }
+.stop-card.empty .paper-fade { background: linear-gradient(to top, rgba(245,241,233,.97) 0%, rgba(245,241,233,.86) 47%, rgba(245,241,233,.2) 100%); }
+.stop-card .map-credit { color: var(--muted-2); top: 44px; bottom: auto; right: 18px; }
 .stop-card .idx { position: absolute; top: 16px; left: 20px; font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--muted-3); background: var(--paper); border-radius: 8px; padding: 3px 8px; }
 .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; border-radius: 100px; padding: 5px 11px; white-space: nowrap; }
 .pill .ms { font-size: 14px; }
