@@ -42,9 +42,9 @@ export function buildDemoTrip(now: Date = new Date()): Trip {
     adminId: 'you',
     isDemo: true,
     travelers: [
-      { id: 'you', name: 'T', color: 'var(--acc)' },
-      { id: 'sam', name: 'Sam', color: '#2E9E7E' },
-      { id: 'priya', name: 'Priya', color: '#B4477E' },
+      { id: 'you', name: 'T', color: 'var(--acc)', profile: { interests: ['Coffee houses', 'Modern art', 'Architecture', 'Long city walks', 'Natural wine'], link: null, updatedAt: now.toISOString() } },
+      { id: 'sam', name: 'Sam', color: '#2E9E7E', profile: { interests: ['Football', 'Craft beer', 'Street food', 'History', 'Hiking'], link: null, updatedAt: now.toISOString() } },
+      { id: 'priya', name: 'Priya', color: '#B4477E', profile: { interests: ['Design shops', 'Vegetarian food', 'Live music', 'Photography', 'Markets'], link: null, updatedAt: now.toISOString() } },
     ],
     stops: [
       { id: 'vie', order: 1, name: 'Vienna', country: 'AT', lat: 48.2082, lng: 16.3738, tz: VIE, arrive: d(0), depart: d(2) },

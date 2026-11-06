@@ -1,14 +1,17 @@
 // Every change to a trip is one of these. The same reducer applies a change optimistically on
 // this phone, replays queued changes after being offline, and runs in the local demo store.
 
-import type { Expense, Reservation, Trip } from './types';
+import type { Expense, Profile, RecSet, Reservation, Trip } from './types';
+import { recKey } from './types';
 
 export type Mutation =
   | { kind: 'upsertReservation'; reservation: Reservation }
   | { kind: 'deleteReservation'; id: string }
   | { kind: 'upsertExpense'; expense: Expense }
   | { kind: 'deleteExpense'; id: string }
-  | { kind: 'replaceTrip'; trip: Trip };
+  | { kind: 'replaceTrip'; trip: Trip }
+  | { kind: 'upsertProfile'; travelerId: string; profile: Profile }
+  | { kind: 'setRecs'; recs: RecSet };
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   const i = list.findIndex(x => x.id === item.id);
@@ -29,7 +32,16 @@ export function applyMutation(trip: Trip, m: Mutation): Trip {
     case 'deleteExpense':
       return { ...trip, expenses: trip.expenses.filter(e => e.id !== m.id) };
     case 'replaceTrip':
-      return m.trip;
+      // Profiles and recommendations are edited on their own; a trip edit never overwrites them.
+      return {
+        ...m.trip,
+        travelers: m.trip.travelers.map(t => ({ ...t, profile: trip.travelers.find(o => o.id === t.id)?.profile ?? t.profile ?? null })),
+        recs: trip.recs,
+      };
+    case 'upsertProfile':
+      return { ...trip, travelers: trip.travelers.map(t => (t.id === m.travelerId ? { ...t, profile: m.profile } : t)) };
+    case 'setRecs':
+      return { ...trip, recs: { ...(trip.recs ?? {}), [recKey(m.recs.stopId, m.recs.travelerId)]: m.recs } };
   }
 }
 

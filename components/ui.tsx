@@ -36,10 +36,10 @@ export function Avatar({ t, small }: { t: Traveler; small?: boolean }) {
 
 /** Bottom sheet: backdrop tap or Escape closes; focus moves in and returns on close. */
 export function Sheet({
-  title, onClose, children, footer, tall, dark, hero, label,
+  title, onClose, children, footer, tall, dark, hero, label, className = '',
 }: {
   title?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode;
-  tall?: boolean; dark?: boolean; hero?: ReactNode; label: string;
+  tall?: boolean; dark?: boolean; hero?: ReactNode; label: string; className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -61,7 +61,7 @@ export function Sheet({
         {hero}
         <div
           ref={ref}
-          className={`sheet ${tall ? 'tall' : ''}`}
+          className={`sheet ${tall ? 'tall' : ''} ${className}`}
           role="dialog"
           aria-modal="true"
           aria-label={label}

@@ -41,6 +41,28 @@ confirmations and receipts, and each has its own tool schema (`lib/scan-prompt.t
   with no image or content stored. `npm run eval:scan` scores field accuracy on real documents;
   the launch bar is 95%.
 
+## 2b. Recommendations: researched per traveler, per city
+
+Each traveler picks five interests and can share one page they love. In any city, tapping
+**Find things for you** calls `/api/recommend` (`lib/recommend-prompt.ts`):
+
+- **Claude researches, not recalls.** It has Anthropic's server-side **web search** (max 4) to
+  check that places exist, are open this season and are near the stay, and **web fetch** (max 1)
+  to read the traveler's own link for taste. Because fetching happens on Anthropic's side, our
+  server never requests a user-supplied URL, so there's no server-side request forgery to defend.
+  Links are still checked to be http(s) on the way in.
+- **Anchored on the itinerary.** The prompt carries the stay's name, address and coordinates, the
+  dates, what's already booked (so it isn't repeated) and the next stop. Picks are kept within
+  about 30 minutes, spread across interests (at most two per interest).
+- **Structured output.** The final answer must match a JSON schema (`output_config.format`) and is
+  validated again with zod. Links that aren't http(s) are dropped; the list is capped at five.
+- **Long turns.** Server tools can pause a turn (`pause_turn`); the route continues it up to
+  twice before giving up cleanly.
+- **On tap, per traveler.** Nothing runs automatically. Results are saved for the whole group
+  (`recs` keyed `stopId:travelerId`) and marked stale if that person later changes their interests.
+- **Cost guardrails.** 15 runs per trip per day, a separate pool for the demo, and a log line per
+  run with latency, tokens and search count. A run costs roughly $0.05–0.10, mostly search.
+
 ## 3. Live status is pure, local and honest
 
 `lib/live-status.ts` has no I/O. It takes a booking, "now", where you are and where you need to be:
@@ -88,6 +110,10 @@ and expenses are separate rows, so two people adding expenses at once never over
 **Live sync:** after a write, the client sends a Realtime *broadcast* on `trip:<token>` and other
 phones refetch. This works regardless of row-level security, and no data rides on the socket.
 
+Profiles and recommendations have their own mutations (`upsertProfile`, `setRecs`), and a trip
+edit (`replaceTrip`) never overwrites them, in the app's reducer or in SQL. That behaviour is
+checked by `supabase/smoke-test.sql` against a real Postgres.
+
 **Offline:** every change is one `Mutation` (`lib/mutations.ts`). It is applied to the screen at
 once, appended to an outbox in local storage and sent in order; a network failure stops the queue
 without losing it. The same reducer replays the outbox over the last cached copy while offline.
@@ -97,6 +123,8 @@ without losing it. The same reducer replays the outbox over the last cached copy
 - **Icons:** 50-odd Material Symbols generated into inline SVG (`scripts/build-icons.mjs`), about
   12 KB gzipped instead of a multi-megabyte icon font, with no flash of ligature text.
 - **Fonts:** self-hosted via Fontsource, so there is no third-party request and they work offline.
+- **City capsules:** each city in the itinerary is a compact capsule with a fixed street map of that
+  city fading in from the right (lazy-loaded). Live bookings for today sit just below their city.
 - **Maps:** the trip tile shows a street map of the city you're in today (`mapStop` in
   `lib/trip.ts`): the first stop before the trip, the last after it, and on a travel day it
   switches once your first booking out has left. It is a static map made of the 2–6

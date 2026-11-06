@@ -3,7 +3,8 @@
 import { fmtMoney } from '@/lib/balances';
 import { fmtDay, fmtDayLabel, fmtRange, fmtTime, zonedToInstant } from '@/lib/time';
 import { flag, isTransit } from '@/lib/trip';
-import type { Reservation, Stop, Trip } from '@/lib/types';
+import type { RecSet, Reservation, Stop, Trip } from '@/lib/types';
+import { Recs } from './Recs';
 import { LiveLine, type LiveFn } from './Itinerary';
 import { MapView } from './MapView';
 import { Icon, Sheet, STATUS_LABEL, TYPE_ICON } from './ui';
@@ -46,8 +47,9 @@ export function ReservationCard({ r, live, onOpen }: { r: Reservation; live: Liv
   );
 }
 
-export function StopSheet({ trip, stop, live, onClose, onOpen, onAdd }: {
-  trip: Trip; stop: Stop; live: LiveFn; onClose: () => void; onOpen: (r: Reservation) => void; onAdd: () => void;
+export function StopSheet({ trip, stop, live, me, onClose, onOpen, onAdd, onSaveRecs, onEditProfile }: {
+  trip: Trip; stop: Stop; live: LiveFn; me: string; onClose: () => void; onOpen: (r: Reservation) => void; onAdd: () => void;
+  onSaveRecs: (s: RecSet) => void; onEditProfile: () => void;
 }) {
   const mine = trip.reservations
     .filter(r => r.stopId === stop.id)
@@ -58,6 +60,7 @@ export function StopSheet({ trip, stop, live, onClose, onOpen, onAdd }: {
       label={`${stop.name} reservations`}
       onClose={onClose}
       dark
+      className="stop-sheet"
       hero={
         <div className="hero">
           <MapView center={{ lat: stop.lat, lng: stop.lng }} zoom={13} />
@@ -77,7 +80,7 @@ export function StopSheet({ trip, stop, live, onClose, onOpen, onAdd }: {
         </>
       }
     >
-      <div style={{ maxHeight: '54dvh' }}>
+      <div>
         {!mine.length && <p className="help" style={{ margin: '6px 2px 0', fontSize: 14 }}>Nothing booked in {stop.name} yet.</p>}
         {days.map(d => (
           <div key={d}>
@@ -88,6 +91,7 @@ export function StopSheet({ trip, stop, live, onClose, onOpen, onAdd }: {
           </div>
         ))}
         <button className="add-row" onClick={onAdd}><Icon name="add_circle" fill />Add an activity or dinner in {stop.name}</button>
+        <Recs trip={trip} stop={stop} me={me} onSave={onSaveRecs} onEditProfile={onEditProfile} />
       </div>
     </Sheet>
   );

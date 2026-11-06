@@ -157,75 +157,55 @@ function StopCard({ stop, stays, others, here, live, h }: {
   const nights = daysBetween(stop.arrive, stop.depart);
   const empty = !booked.length && !pending.length;
   const stay = booked[0] ?? pending[0];
+  const liveOnes = others.map(o => ({ o, s: live(o) })).filter(x => x.s);
+  const planned = others.length;
+  const open = () => h.openStop(stop);
   return (
-    <div
-      className={`stop-card ${empty ? 'empty' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-label={`${stop.name}, stop ${stop.order}`}
-      onClick={() => h.openStop(stop)}
-      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), h.openStop(stop))}
-    >
-      {/* A fixed street map of this city; the grid shows until it loads, or if it can't. */}
-      <div className="tex" />
-      <MapView center={{ lat: stop.lat, lng: stop.lng }} zoom={13} focusY={0.42} tint={false} lazy />
-      <div className="paper-fade" />
-      <span className="idx">{String(stop.order).padStart(2, '0')}</span>
-      <div className="status">
-        {here && <span className="pill here">You’re here</span>}
-        {booked.length > 0 && <span className="pill ok"><Icon name="check_circle" fill />{booked.length} {booked.length === 1 ? 'stay' : 'stays'} booked</span>}
-        {!booked.length && pending.length > 0 && <span className="pill warn">Stay pending</span>}
-        {empty && <span className="pill bad">No stays yet</span>}
+    <div className="cap-wrap">
+      <div
+        className={`cap ${empty ? 'empty' : ''} ${here ? 'here' : ''}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`${stop.name}, stop ${stop.order}${here ? ', you are here' : ''}`}
+        onClick={open}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
+      >
+        {/* A fixed street map of this city, faded in from the right. */}
+        <div className="cap-map"><MapView center={{ lat: stop.lat, lng: stop.lng }} zoom={13} tint={false} lazy /></div>
+        <div className="cap-tx">
+          <div className="dates">{here ? <><b>YOU’RE HERE</b> · {fmtRange(stop.arrive, stop.depart)}</> : <>{fmtRange(stop.arrive, stop.depart)} · {nights} {nights === 1 ? 'NIGHT' : 'NIGHTS'}</>}</div>
+          <div className="nm"><span>{stop.name}</span> <span aria-hidden="true">{flag(stop.country)}</span></div>
+          <div className={`sub ${empty ? 'todo' : ''}`}>
+            {stay ? stay.title : 'No stay yet'}{planned > 0 && <span className="more"> · {planned} {planned === 1 ? 'plan' : 'plans'}</span>}
+          </div>
+        </div>
+        <div className="cap-right">
+          {booked.length > 0 && <span className="pill ok"><span className="dot" />Booked</span>}
+          {!booked.length && pending.length > 0 && <span className="pill warn"><span className="dot" />Pending</span>}
+          {empty && (
+            <>
+              <button className="round-btn acc" aria-label={`Add a stay in ${stop.name}`} onClick={e => { e.stopPropagation(); h.addToStop(stop, { type: 'hotel' }); }}><Icon name="add" /></button>
+              <button className="round-btn" aria-label={`Upload a confirmation for ${stop.name}`} onClick={e => { e.stopPropagation(); h.addToStop(stop, { scan: true, type: 'hotel' }); }}><Icon name="photo_camera" /></button>
+            </>
+          )}
+        </div>
       </div>
-      <div className="body">
-        <div className="dates">{fmtRange(stop.arrive, stop.depart)} · {nights} {nights === 1 ? 'NIGHT' : 'NIGHTS'}</div>
-        <div className="nm"><span>{stop.name}</span><span aria-hidden="true">{flag(stop.country)}</span></div>
-        {stay && (
-          <div className={`stay ${stay.status}`}>
-            <Icon name="hotel" fill />
-            <span>{stay.title} · check-in {fmtTime(stay.startLocal)}</span>
+      {liveOnes.map(({ o, s }) => (
+        <div key={o.id} className={`leg-card mini ${s!.state}`} role="button" tabIndex={0}
+          onClick={() => h.openReservation(o)} onKeyDown={e => e.key === 'Enter' && h.openReservation(o)}>
+          <div className="row">
+            <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name={TYPE_ICON[o.type]} fill className="mini-ic" />
+              <div style={{ minWidth: 0 }}>
+                <div className="times">{fmtTime(o.startLocal)}{o.endLocal ? ` → ${fmtTime(o.endLocal)}` : ''}</div>
+                <div className="sub">{o.title}</div>
+              </div>
+            </div>
+            <span className={o.status === 'booked' ? 'okdot' : 'pendot'} aria-label={o.status} />
           </div>
-        )}
-        {others.length > 0 && (
-          <div className="extra">
-            {others.slice(0, 3).map(o => {
-              const s = live(o);
-              // A booking that is live right now gets the full treatment: times, ring, countdown.
-              if (s) {
-                return (
-                  <div key={o.id} className={`leg-card mini ${s.state}`} role="button" tabIndex={0}
-                    onClick={e => { e.stopPropagation(); h.openReservation(o); }}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); h.openReservation(o); } }}>
-                    <div className="row">
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Icon name={TYPE_ICON[o.type]} fill className="mini-ic" />
-                        <div style={{ minWidth: 0 }}>
-                          <div className="times">{fmtTime(o.startLocal)}{o.endLocal ? ` → ${fmtTime(o.endLocal)}` : ''}</div>
-                          <div className="sub">{o.title}</div>
-                        </div>
-                      </div>
-                      <span className={o.status === 'booked' ? 'okdot' : 'pendot'} aria-label={o.status} />
-                    </div>
-                    <LiveLine s={s} r={o} onRebook={() => h.openReservation(o)} />
-                  </div>
-                );
-              }
-              return (
-                <div key={o.id} className={`stay ${o.status}`} style={{ marginTop: 0 }}>
-                  <Icon name={TYPE_ICON[o.type]} fill />
-                  <span>{o.title} · {fmtTime(o.startLocal)}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {empty && (
-          <div className="actions">
-            <button className="chip-btn" onClick={e => { e.stopPropagation(); h.addToStop(stop, { type: 'hotel' }); }}><Icon name="add" className="acc" />Add stay</button>
-            <button className="chip-btn" onClick={e => { e.stopPropagation(); h.addToStop(stop, { scan: true, type: 'hotel' }); }}><Icon name="photo_camera" />Upload</button>
-          </div>
-        )}
-      </div>
+          <LiveLine s={s!} r={o} onRebook={() => h.openReservation(o)} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -246,6 +226,7 @@ export function Timeline({ trip, current, live, h }: { trip: Trip; current: Stop
         if (it.kind === 'leg') return <LegBlock key={it.leg.id} trip={trip} leg={it.leg} bookings={it.bookings} live={live} h={h} />;
         return <StopCard key={it.stop.id + i} stop={it.stop} stays={it.stays} others={it.others} here={current?.id === it.stop.id} live={live} h={h} />;
       })}
+      <a className="osm-note" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">City maps © OpenStreetMap contributors</a>
     </div>
   );
 }

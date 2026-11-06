@@ -7,11 +7,45 @@ export type Currency = 'EUR' | 'INR' | 'USD' | 'GBP' | 'HRK' | 'CHF' | 'JPY';
 
 export const TRANSIT_TYPES: ReadonlySet<ReservationType> = new Set(['flight', 'train', 'ferry', 'bus', 'car']);
 
+export interface Profile {
+  /** Exactly five, in the traveler's own words or picked from suggestions. */
+  interests: string[];
+  /** An article, page or blog they like — read by Claude to get a feel for their taste. */
+  link: string | null;
+  updatedAt: string; // ISO
+}
+
 export interface Traveler {
   id: string;
   name: string;
   /** CSS colour for the avatar. */
   color: string;
+  profile?: Profile | null;
+}
+
+export type RecKind = 'food' | 'drink' | 'sight' | 'museum' | 'outdoors' | 'shop' | 'nightlife' | 'experience';
+
+export interface Rec {
+  name: string;
+  kind: RecKind;
+  /** One sentence tying it to this traveler's interests. */
+  why: string;
+  /** Which of their interests it serves, verbatim. */
+  interest: string;
+  area: string;
+  /** Rough distance from where they're staying, e.g. "10 min walk". */
+  distance: string;
+  url: string | null;
+}
+
+/** Recommendations for one traveler in one city. */
+export interface RecSet {
+  stopId: string;
+  travelerId: string;
+  items: Rec[];
+  /** The interests and link they were generated from, so the UI can say when they're stale. */
+  basis: { interests: string[]; link: string | null };
+  generatedAt: string;
 }
 
 export interface Place {
@@ -92,8 +126,12 @@ export interface Trip {
   legs: Leg[];
   reservations: Reservation[];
   expenses: Expense[];
+  /** Keyed `${stopId}:${travelerId}`. */
+  recs?: Record<string, RecSet>;
   isDemo: boolean;
 }
+
+export const recKey = (stopId: string, travelerId: string) => `${stopId}:${travelerId}`;
 
 export const CURRENCY_SYMBOL: Record<Currency, string> = {
   EUR: '€', INR: '₹', USD: '$', GBP: '£', HRK: 'kn', CHF: 'CHF ', JPY: '¥',

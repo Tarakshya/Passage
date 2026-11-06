@@ -16,6 +16,7 @@ import { ExpenseSheet } from './ExpenseSheet';
 import { Timeline, TripTile, type ItineraryHandlers } from './Itinerary';
 import { ReservationSheet, type ReservationPrefill } from './ReservationSheet';
 import { DemoPanel, ShareSheet, WhoAreYou } from './SmallSheets';
+import { ProfileSheet } from './ProfileSheet';
 import { Split } from './Split';
 import { StopSheet } from './StopSheet';
 import { TripForm } from './TripForm';
@@ -28,7 +29,8 @@ type SheetState =
   | { kind: 'trip'; initial: Trip | null }
   | { kind: 'share' }
   | { kind: 'demo' }
-  | { kind: 'who' };
+  | { kind: 'who' }
+  | { kind: 'profile'; firstTime: boolean; back?: SheetState };
 
 export function App({ token }: { token: string }) {
   const router = useRouter();
@@ -54,6 +56,14 @@ export function App({ token }: { token: string }) {
   const rates = useRates(trip?.baseCurrency ?? 'EUR');
 
   useEffect(() => { setOthers(knownTrips().filter(t => t.token !== token)); }, [token, trip?.name]);
+  // A trip's creator skips "Who are you?", so ask for their interests once when they first land.
+  useEffect(() => {
+    if (!trip || !me) return;
+    const k = `passage:askprofile:${trip.token}`;
+    let ask = false;
+    try { ask = localStorage.getItem(k) === '1'; localStorage.removeItem(k); } catch { /* ignore */ }
+    if (ask && !trip.travelers.find(t => t.id === me)?.profile) setSheet({ kind: 'profile', firstTime: true });
+  }, [trip?.token, me]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4200); return () => clearTimeout(t); }, [toast]);
 
   const notify = useCallback((msg: string, action?: { label: string; run: () => void }) => setToast({ msg, action }), []);
@@ -89,6 +99,7 @@ export function App({ token }: { token: string }) {
 
   const current = currentStop(trip, now);
   const meId = me ?? trip.adminId;
+  const meT = trip.travelers.find(t => t.id === meId);
 
   const openRes = (initial: Reservation | null, prefill: ReservationPrefill = {}) => setSheet({ kind: 'res', initial, prefill });
   const h: ItineraryHandlers = {
@@ -125,7 +136,10 @@ export function App({ token }: { token: string }) {
       return;
     }
     await storeFor(t.token).create(t);
-    try { localStorage.setItem(`passage:me:${t.token}`, t.adminId); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(`passage:me:${t.token}`, t.adminId);
+      localStorage.setItem(`passage:askprofile:${t.token}`, '1'); // ask the creator what they love on arrival
+    } catch { /* ignore */ }
     router.push(`/t/${t.token}`);
   };
 
@@ -155,9 +169,10 @@ export function App({ token }: { token: string }) {
             </div>
             {state.offline && <div className="offline"><Icon name="cloud_off" />Offline — changes will send when you’re back online</div>}
             <TripTile trip={trip} now={now} expanded={expanded} onToggle={() => setExpanded(x => !x)} urgent={urgent} />
-            <div style={{ display: 'flex', gap: 8, margin: '10px 0 0' }}>
+            <div style={{ display: 'flex', gap: 8, margin: '10px 0 0', flexWrap: 'wrap' }}>
               <button className="chip-btn" onClick={() => setSheet({ kind: 'share' })}><Icon name="ios_share" />Share</button>
               <button className="chip-btn" onClick={() => setSheet({ kind: 'trip', initial: trip })}><Icon name="edit" />Edit trip</button>
+              <button className="chip-btn" onClick={() => setSheet({ kind: 'profile', firstTime: false })}><Icon name="favorite" />Interests</button>
               {needsLocation && <button className="chip-btn" onClick={() => setLocPref(true)}><Icon name="near_me" className="acc" />Live times</button>}
             </div>
             {!isDemo && locPref && (loc.status === 'denied' || loc.status === 'unavailable') && (
@@ -203,7 +218,9 @@ export function App({ token }: { token: string }) {
         </nav>
 
         {stopForSheet && (
-          <StopSheet trip={trip} stop={stopForSheet} live={live} onClose={() => setSheet(null)} onOpen={r => openRes(r)}
+          <StopSheet trip={trip} stop={stopForSheet} live={live} me={meId} onClose={() => setSheet(null)} onOpen={r => openRes(r)}
+            onSaveRecs={recs => void mutate({ kind: 'setRecs', recs })}
+            onEditProfile={() => setSheet({ kind: 'profile', firstTime: false, back: sheet ?? undefined })}
             onAdd={() => openRes(null, { stopId: stopForSheet.id, type: trip.reservations.some(r => r.stopId === stopForSheet.id && r.type === 'hotel') ? 'activity' : 'hotel' })} />
         )}
         {sheet?.kind === 'res' && (
@@ -218,7 +235,16 @@ export function App({ token }: { token: string }) {
           <DemoPanel sim={sim} setSim={setSim} trip={trip} now={now} me={meId} setMe={setMe} loc={loc} onReset={resetDemo} onClose={() => setSheet(null)} />
         )}
         {(sheet?.kind === 'who' || (!me && !trip.isDemo)) && (
-          <WhoAreYou trip={trip} onPick={id => { setMe(id); setSheet(null); }} onClose={me ? () => setSheet(null) : undefined} />
+          <WhoAreYou trip={trip} onClose={me ? () => setSheet(null) : undefined} onPick={id => {
+            setMe(id);
+            // First time on this trip: ask what they love, so recommendations can be made for them.
+            const t = trip.travelers.find(x => x.id === id);
+            setSheet(t?.profile ? null : { kind: 'profile', firstTime: true });
+          }} />
+        )}
+        {sheet?.kind === 'profile' && meT && (
+          <ProfileSheet traveler={meT} firstTime={sheet.firstTime} onClose={() => setSheet(sheet.back ?? null)}
+            onSave={profile => void mutate({ kind: 'upsertProfile', travelerId: meT.id, profile })} />
         )}
 
         {toast && (
