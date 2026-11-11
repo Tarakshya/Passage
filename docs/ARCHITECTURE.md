@@ -41,6 +41,47 @@ confirmations and receipts, and each has its own tool schema (`lib/scan-prompt.t
   with no image or content stored. `npm run eval:scan` scores field accuracy on real documents;
   the launch bar is 95%.
 
+## 2b. Recommendations: researched per traveler, per city
+
+Each traveler picks five interests and can share one page they love. In any city, tapping
+**Find things for you** calls `/api/recommend` (`lib/recommend-prompt.ts`):
+
+- **Claude researches, not recalls.** It has Anthropic's server-side **web search** (max 4) to
+  check that places exist, are open this season and are near the stay, and **web fetch** (max 1)
+  to read the traveler's own link for taste. Because fetching happens on Anthropic's side, our
+  server never requests a user-supplied URL, so there's no server-side request forgery to defend.
+  Links are still checked to be http(s) on the way in.
+- **Anchored on the itinerary.** The prompt carries the stay's name, address and coordinates, the
+  dates, what's already booked (so it isn't repeated) and the next stop. Picks are kept within
+  about 30 minutes, spread across interests (at most two per interest).
+- **Structured output.** The final answer must match a JSON schema (`output_config.format`) and is
+  validated again with zod. Links that aren't http(s) are dropped; the list is capped at five.
+- **Long turns.** Server tools can pause a turn (`pause_turn`); the route continues it up to
+  twice before giving up cleanly.
+- **On tap, per traveler.** Nothing runs automatically. Results are saved for the whole group
+  (`recs` keyed `stopId:travelerId`) and marked stale if that person later changes their interests.
+- **Cost guardrails.** 15 runs per trip per day, a separate pool for the demo, and a log line per
+  run with latency, tokens and search count. A run costs roughly $0.05–0.10, mostly search.
+
+## 2c. Klook: shown only where it is real
+
+T's rule: Klook for experiences, deals and prices, and for its trains, buses and ferries — and if
+Klook doesn't have it, show nothing.
+
+- **Experiences.** While researching picks, Claude may spend up to two searches checking whether
+  Klook sells that exact ticket or tour. It returns a Klook address and "from" price only if it
+  saw them in search results. The server then keeps the link only if it is an `https` page on
+  `klook.com` (look-alike domains and the bare home page are dropped) and the price only if it
+  looks like a price (`lib/klook.ts`). Nothing ever builds a Klook URL or price. Picks Klook
+  doesn't sell show a plain "Website" link, or nothing.
+- **Transport.** An unbooked *train* leg gets a Klook pill only when both ends are in countries
+  Klook's Europe rail shop lists (GB, ES, IT, FR, NL, CH, DE). Klook doesn't publish bus or ferry
+  coverage per route, so those legs get no pill rather than a hopeful one. The demo's Austria and
+  Croatia legs therefore show none — by design.
+- **No partner API.** Klook's full API needs a partner agreement. This works without one, and
+  `NEXT_PUBLIC_KLOOK_AID` adds an affiliate id to links if one is ever granted.
+- Prices are a snapshot, so the list says when it was researched and that Klook prices change.
+
 ## 3. Live status is pure, local and honest
 
 `lib/live-status.ts` has no I/O. It takes a booking, "now", where you are and where you need to be:
@@ -88,6 +129,10 @@ and expenses are separate rows, so two people adding expenses at once never over
 **Live sync:** after a write, the client sends a Realtime *broadcast* on `trip:<token>` and other
 phones refetch. This works regardless of row-level security, and no data rides on the socket.
 
+Profiles and recommendations have their own mutations (`upsertProfile`, `setRecs`), and a trip
+edit (`replaceTrip`) never overwrites them, in the app's reducer or in SQL. That behaviour is
+checked by `supabase/smoke-test.sql` against a real Postgres.
+
 **Offline:** every change is one `Mutation` (`lib/mutations.ts`). It is applied to the screen at
 once, appended to an outbox in local storage and sent in order; a network failure stops the queue
 without losing it. The same reducer replays the outbox over the last cached copy while offline.
@@ -97,14 +142,44 @@ without losing it. The same reducer replays the outbox over the last cached copy
 - **Icons:** 50-odd Material Symbols generated into inline SVG (`scripts/build-icons.mjs`), about
   12 KB gzipped instead of a multi-megabyte icon font, with no flash of ligature text.
 - **Fonts:** self-hosted via Fontsource, so there is no third-party request and they work offline.
-- **Maps:** MapLibre with OpenFreeMap tiles: open data, no key, no account. The designed
-  gradient shows until tiles load, and stays if they don't.
+- **City capsules:** each city in the itinerary is a compact capsule with a fixed street map of that
+  city fading in from the right (lazy-loaded). Live bookings for today sit just below their city.
+- **Maps:** the ticket carries a faint street map of the city you're in today (`mapStop` in
+  `lib/trip.ts`): the first stop before the trip, the last after it, and on a travel day it
+  switches once your first booking out has left. It is a static map made of the 2–6
+  OpenStreetMap image tiles that cover the box (`components/MapView.tsx`). The first version
+  used a full vector map engine: about 1 MB plus a background worker, slow on phones, for a map
+  nobody pans. The static version needs no key, appears almost at once, and is cached offline.
+  It follows the OSM tile policy: visible credit, a Referer, caching. Each city stub carries a fixed map of its own city. If tiles don't
+  arrive, the plain card stays.
 - **Place search:** Photon (OpenStreetMap). Time zones come from `tz-lookup` on the device, so a
   stop's zone never depends on a network call.
-- **Security headers:** strict CSP limited to the four hosts the app talks to, no referrer, and
+- **Security headers:** strict CSP limited to the hosts the app talks to, an origin-only referrer
+  (OpenStreetMap needs one; trip tokens in paths are never sent), and
   `frame-ancestors 'none'`.
 - **The demo** runs entirely on the device, always mid-trip (dates are relative to now), and
   re-seeds after 6 hours. Reviewers can't change it for each other.
+
+## 7. The look: "Boarding Pass", concierge edition
+
+A night-navy app where each trip is a cream paper ticket with a tear-off stub, and one lagoon
+colour does all the pointing. Rules that keep it calm:
+
+- **Two type voices:** Cormorant Garamond for names and amounts; Jost for reading and for
+  small, widely spaced capitals on labels. No monospace: figures use tabular numerals, so
+  times and money still line up.
+- **Status is a word or a shape, never colour alone:** solid pill = booked, dashed = to book,
+  and red means one thing only — at risk.
+- **Two levels:** the home screen lists your trips as tickets (in progress first, then upcoming,
+  then past; the sample trip last). Opening one shows only what matters today: *Next up* (the
+  soonest booking not yet missed, with a countdown to leave-by — `nextUp` in `lib/home.ts`), the
+  trip ticket, and the route, which folds away under the ticket's arrow. Share, edit, interests
+  and demo controls live in the ⋯ menu.
+- Each thing is said once: a booking shown in *Next up* doesn't repeat its leave-by in the route.
+- The list is built from a small summary each phone saves when it opens a trip
+  (`tripSummary`); the sample trip is rebuilt for today so it is always mid-trip. The home card
+  for a trip in progress shows the city's temperature from Open-Meteo (keyless; city
+  coordinates only; silently absent on failure).
 
 ## Known limits (v1)
 

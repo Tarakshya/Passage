@@ -1,61 +1,92 @@
 'use client';
 
-// A quiet, non-interactive map behind the trip tile and stop hero. MapLibre + OpenFreeMap:
-// open data, no API key, no account. If it can't load (offline), the designed gradient shows.
+// A fast, static city map: the few 256-px OpenStreetMap image tiles that cover the box, placed by
+// hand. No map engine, no worker, no API key, no markers — a handful of small PNGs that the
+// service worker caches, so it appears almost at once and works offline.
+//
+// Tile use follows the OSM tile policy: visible attribution, a normal Referer (see the
+// Referrer-Policy header in next.config.ts), and caching.
 
-import { useEffect, useRef, useState } from 'react';
-import type { Map as MLMap } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-export interface Pin { lat: number; lng: number }
+export interface LatLng { lat: number; lng: number }
 
-const STYLE = 'https://tiles.openfreemap.org/styles/positron';
+const TILE = 256;
+const tileUrl = (z: number, x: number, y: number) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 
-/** The colour tint only appears once the map has loaded, so the designed fallback art shows untouched. */
-export function MapView({ pins, route = true, zoom }: { pins: Pin[]; route?: boolean; zoom?: number }) {
+/** Web-Mercator world pixel coordinates at zoom z. */
+export function project(p: LatLng, z: number): { x: number; y: number } {
+  const scale = TILE * 2 ** z;
+  const lat = Math.max(-85.05, Math.min(85.05, p.lat)) * (Math.PI / 180);
+  return {
+    x: ((p.lng + 180) / 360) * scale,
+    y: ((1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2) * scale,
+  };
+}
+
+/**
+ * The tiles covering a w×h box around `center`. `focusY` is where the centre sits vertically
+ * (0.4 = a little above the middle, clear of text laid over the bottom of the tile).
+ */
+export function tilesFor(center: LatLng, z: number, w: number, h: number, focusY = 0.5) {
+  const c = project(center, z);
+  const ox = c.x - w / 2;
+  const oy = c.y - h * focusY;
+  const n = 2 ** z;
+  const out: { key: string; src: string; left: number; top: number }[] = [];
+  for (let ty = Math.floor(oy / TILE); ty <= Math.floor((oy + h) / TILE); ty++) {
+    if (ty < 0 || ty >= n) continue;
+    for (let tx = Math.floor(ox / TILE); tx <= Math.floor((ox + w) / TILE); tx++) {
+      out.push({ key: `${z}/${tx}/${ty}`, src: tileUrl(z, ((tx % n) + n) % n, ty), left: tx * TILE - ox, top: ty * TILE - oy });
+    }
+  }
+  return out;
+}
+
+/**
+ * `tint` adds the coloured wash used on the dark trip tile and stop hero; city cards leave it
+ * off and fade the map under their own paper overlay. `lazy` defers tiles until near the screen.
+ */
+export function MapView({ center, zoom = 12, focusY = 0.5, tint = true, lazy = false }: {
+  center: LatLng; zoom?: number; focusY?: number; tint?: boolean; lazy?: boolean;
+}) {
   const el = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
-  const key = JSON.stringify(pins);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [loaded, setLoaded] = useState(0);
 
   useEffect(() => {
-    if (!el.current || !pins.length || !navigator.onLine) return;
-    let map: MLMap | null = null;
-    let cancelled = false;
-    void import('maplibre-gl').then(ml => {
-      if (cancelled || !el.current) return;
-      const m = new ml.Map({
-        container: el.current, style: STYLE, interactive: false,
-        attributionControl: { compact: true },
-        center: [pins[0].lng, pins[0].lat], zoom: zoom ?? 5, fadeDuration: 0,
-      });
-      map = m;
-      m.on('error', () => { /* tiles failed: gradient stays visible */ });
-      m.on('load', () => {
-        if (cancelled) return;
-        const coords = pins.map(p => [p.lng, p.lat] as [number, number]);
-        if (route && coords.length > 1) {
-          m.addSource('route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } } });
-          m.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#ffffff', 'line-width': 2.5, 'line-opacity': .9, 'line-dasharray': [2, 1.5] } });
-        }
-        m.addSource('pins', { type: 'geojson', data: { type: 'FeatureCollection', features: coords.map(c => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })) } });
-        m.addLayer({ id: 'halo', type: 'circle', source: 'pins', paint: { 'circle-radius': 11, 'circle-color': '#ffffff', 'circle-opacity': .28 } });
-        m.addLayer({ id: 'pin', type: 'circle', source: 'pins', paint: { 'circle-radius': 5.5, 'circle-color': '#ffffff' } });
-        if (coords.length > 1 && zoom === undefined) {
-          const b = new ml.LngLatBounds(coords[0], coords[0]);
-          coords.forEach(c => b.extend(c));
-          m.fitBounds(b, { padding: { top: 40, bottom: 110, left: 40, right: 40 }, duration: 0, maxZoom: 9 });
-        }
-        setReady(true);
-      });
-    }).catch(() => { /* gradient fallback */ });
-    return () => { cancelled = true; map?.remove(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, route, zoom]);
+    if (!el.current) return;
+    const ro = new ResizeObserver(([e]) => {
+      const { width, height } = e.contentRect;
+      if (width && height) setSize(s => (s && Math.abs(s.w - width) < 1 && Math.abs(s.h - height) < 1 ? s : { w: width, h: height }));
+    });
+    ro.observe(el.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const tiles = useMemo(
+    () => (size ? tilesFor(center, zoom, size.w, size.h, focusY) : []),
+    [size, center.lat, center.lng, zoom, focusY], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // A new city starts hidden again, so the old one never shows half-replaced.
+  useEffect(() => setLoaded(0), [tiles[0]?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ready = tiles.length > 0 && loaded >= Math.ceil(tiles.length * 0.75);
 
   return (
     <>
-      <div ref={el} className="map" style={{ opacity: ready ? 1 : 0, transition: 'opacity .4s' }} aria-hidden="true" />
-      <div className="tint" style={{ opacity: ready ? undefined : 0 }} aria-hidden="true" />
+      <div ref={el} className="map" aria-hidden="true" style={{ opacity: ready ? 1 : 0, transition: 'opacity .35s' }}>
+        {tiles.map(t => (
+          <img key={t.key} src={t.src} alt="" width={TILE} height={TILE} decoding="async" draggable={false} loading={lazy ? 'lazy' : 'eager'}
+            onLoad={() => setLoaded(c => c + 1)} style={{ position: 'absolute', left: t.left, top: t.top, width: TILE, height: TILE }} />
+        ))}
+      </div>
+      {tint && <div className="tint" style={{ opacity: ready ? undefined : 0 }} aria-hidden="true" />}
+      {ready && (
+        <a className="map-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>
+          © OpenStreetMap
+        </a>
+      )}
     </>
   );
 }

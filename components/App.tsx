@@ -1,21 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DEMO_TOKEN } from '@/lib/demo';
 import {
-  DEMO_HOTEL, knownTrips, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTrip,
-  type KnownTrip, type Sim,
+  DEMO_HOTEL, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTrip, type Sim,
 } from '@/lib/hooks';
-import { isTracked, liveStatus, mostUrgent, type LiveStatus } from '@/lib/live-status';
-import { storeFor } from '@/lib/store';
-import { fmtRange } from '@/lib/time';
+import { nextUp } from '@/lib/home';
+import { isTracked, liveStatus, type LiveStatus } from '@/lib/live-status';
+
 import { currentStop, targetFor } from '@/lib/trip';
 import type { Expense, Leg, Reservation, Stop, Trip } from '@/lib/types';
 import { ExpenseSheet } from './ExpenseSheet';
-import { Timeline, TripTile, type ItineraryHandlers } from './Itinerary';
+import { NextUp, Ticket, Timeline, type ItineraryHandlers } from './Itinerary';
 import { ReservationSheet, type ReservationPrefill } from './ReservationSheet';
-import { DemoPanel, ShareSheet, WhoAreYou } from './SmallSheets';
+import { DemoPanel, ShareSheet, TripMenu, WhoAreYou } from './SmallSheets';
+import { createTrip } from './Trips';
+import { ProfileSheet } from './ProfileSheet';
 import { Split } from './Split';
 import { StopSheet } from './StopSheet';
 import { TripForm } from './TripForm';
@@ -27,8 +29,10 @@ type SheetState =
   | { kind: 'exp'; initial: Expense | null }
   | { kind: 'trip'; initial: Trip | null }
   | { kind: 'share' }
+  | { kind: 'menu' }
   | { kind: 'demo' }
-  | { kind: 'who' };
+  | { kind: 'who' }
+  | { kind: 'profile'; firstTime: boolean; back?: SheetState };
 
 export function App({ token }: { token: string }) {
   const router = useRouter();
@@ -41,7 +45,6 @@ export function App({ token }: { token: string }) {
   const [toast, setToast] = useState<{ msg: string; action?: { label: string; run: () => void } } | null>(null);
   const [sim, setSim] = useState<Sim>({ offsetMin: 0, location: 'hotel' });
   const [locPref, setLocPref] = useLocationPref(token);
-  const [others, setOthers] = useState<KnownTrip[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingUpload = useRef<ReservationPrefill | null>(null);
 
@@ -53,26 +56,28 @@ export function App({ token }: { token: string }) {
     : loc.status === 'on' ? loc.here : null;
   const rates = useRates(trip?.baseCurrency ?? 'EUR');
 
-  useEffect(() => { setOthers(knownTrips().filter(t => t.token !== token)); }, [token, trip?.name]);
+  // A trip's creator skips "Who are you?", so ask for their interests once when they first land.
+  useEffect(() => {
+    if (!trip || !me) return;
+    const k = `passage:askprofile:${trip.token}`;
+    let ask = false;
+    try { ask = localStorage.getItem(k) === '1'; localStorage.removeItem(k); } catch { /* ignore */ }
+    if (ask && !trip.travelers.find(t => t.id === me)?.profile) setSheet({ kind: 'profile', firstTime: true });
+  }, [trip?.token, me]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4200); return () => clearTimeout(t); }, [toast]);
 
   const notify = useCallback((msg: string, action?: { label: string; run: () => void }) => setToast({ msg, action }), []);
 
   const live = useCallback((r: Reservation): LiveStatus | null => (trip ? liveStatus(r, now, here, targetFor(trip, r)) : null), [trip, now, here]);
-  const urgent = useMemo(() => {
-    if (!trip) return null;
-    const pairs = trip.reservations.map(r => ({ r, s: live(r) }));
-    const s = mostUrgent(pairs.map(p => p.s));
-    return s ? pairs.find(p => p.s === s) as { r: Reservation; s: LiveStatus } : null;
-  }, [trip, live]);
+  const next = useMemo(() => (trip ? nextUp(trip.reservations.map(r => ({ r, s: live(r) }))) : null), [trip, live]);
   const needsLocation = !isDemo && !locPref && Boolean(trip?.reservations.some(r => isTracked(r) && live(r)));
 
   if (state.status === 'loading') {
     return (
       <main className="app"><div className="screen">
-        <div className="screen-head"><h1 className="screen-title">Trips</h1></div>
-        <div className="skeleton" style={{ height: 198 }} />
-        <div className="skeleton" style={{ height: 156, marginTop: 70 }} />
+        <div className="skeleton" style={{ height: 78, width: '70%' }} />
+        <div className="skeleton" style={{ height: 104, marginTop: 28 }} />
+        <div className="skeleton" style={{ height: 132, marginTop: 14 }} />
       </div></main>
     );
   }
@@ -89,6 +94,7 @@ export function App({ token }: { token: string }) {
 
   const current = currentStop(trip, now);
   const meId = me ?? trip.adminId;
+  const meT = trip.travelers.find(t => t.id === meId);
 
   const openRes = (initial: Reservation | null, prefill: ReservationPrefill = {}) => setSheet({ kind: 'res', initial, prefill });
   const h: ItineraryHandlers = {
@@ -120,13 +126,8 @@ export function App({ token }: { token: string }) {
   };
 
   const saveTrip = async (t: Trip) => {
-    if (sheet?.kind === 'trip' && sheet.initial) {
-      await mutate({ kind: 'replaceTrip', trip: t });
-      return;
-    }
-    await storeFor(t.token).create(t);
-    try { localStorage.setItem(`passage:me:${t.token}`, t.adminId); } catch { /* ignore */ }
-    router.push(`/t/${t.token}`);
+    if (sheet?.kind === 'trip' && sheet.initial) await mutate({ kind: 'replaceTrip', trip: t });
+    else await createTrip(t, href => router.push(href));
   };
 
   const stopForSheet = sheet?.kind === 'stop' ? trip.stops.find(s => s.id === sheet.stopId) : undefined;
@@ -141,52 +142,27 @@ export function App({ token }: { token: string }) {
           pendingUpload.current = null;
         }} />
 
-        {isDemo && (
-          <button className={`demo-chip ${sim.offsetMin ? 'shifted' : ''}`} onClick={() => setSheet({ kind: 'demo' })} aria-label="Demo controls">
-            <Icon name="science" fill />{sim.offsetMin ? `Demo · +${sim.offsetMin} min` : 'Demo'}
-          </button>
-        )}
+        <header className="topbar">
+          <Link href="/" className="back"><Icon name="chevron_left" />Trips</Link>
+          <div className="tb-right">
+            {isDemo && (
+              <button className={`demo-chip ${sim.offsetMin ? 'shifted' : ''}`} onClick={() => setSheet({ kind: 'demo' })} aria-label="Demo controls">
+                {sim.offsetMin ? `Demo · +${sim.offsetMin} min` : 'Demo'}
+              </button>
+            )}
+            <button className="icon-btn" onClick={() => setSheet({ kind: 'menu' })} aria-label="Trip options"><Icon name="more_horiz" /></button>
+          </div>
+        </header>
 
         {tab === 'trip' ? (
           <div className="screen">
-            <div className="screen-head">
-              <h1 className="screen-title">Trips</h1>
-              {!isDemo && <button className="icon-btn-acc" onClick={() => setSheet({ kind: 'trip', initial: null })} aria-label="New trip"><Icon name="add" /></button>}
-            </div>
             {state.offline && <div className="offline"><Icon name="cloud_off" />Offline — changes will send when you’re back online</div>}
-            <TripTile trip={trip} now={now} expanded={expanded} onToggle={() => setExpanded(x => !x)} urgent={urgent} />
-            <div style={{ display: 'flex', gap: 8, margin: '10px 0 0' }}>
-              <button className="chip-btn" onClick={() => setSheet({ kind: 'share' })}><Icon name="ios_share" />Share</button>
-              <button className="chip-btn" onClick={() => setSheet({ kind: 'trip', initial: trip })}><Icon name="edit" />Edit trip</button>
-              {needsLocation && <button className="chip-btn" onClick={() => setLocPref(true)}><Icon name="near_me" className="acc" />Live times</button>}
-            </div>
+            {next && <NextUp r={next.r} s={next.s} onOpen={() => openRes(next.r)} />}
+            <Ticket trip={trip} now={now} expanded={expanded} onToggle={() => setExpanded(x => !x)} />
             {!isDemo && locPref && (loc.status === 'denied' || loc.status === 'unavailable') && (
-              <div className="help" style={{ margin: '8px 4px 0' }}>Location is off, so leave-by times use buffers only.</div>
+              <div className="help" style={{ margin: '10px 2px 0' }}>Location is off, so leave-by times use buffers only.</div>
             )}
-            {expanded && (
-              <>
-                <div className="divider"><span>Itinerary</span></div>
-                <Timeline trip={trip} current={current} live={live} h={h} />
-              </>
-            )}
-            <div className="divider" style={{ marginTop: 10 }}><span>{others.length ? 'Your other trips' : 'Start your own'}</span></div>
-            {others.map(o => (
-              <button key={o.token} className="trip-row" onClick={() => router.push(`/t/${o.token}`)}>
-                <span className="thumb" style={o.token === DEMO_TOKEN ? { background: 'linear-gradient(135deg,#2E6BD6,#6C63FF 52%,#C23B78)' } : undefined} />
-                <span>
-                  <div className="t1">{o.name}{o.token === DEMO_TOKEN ? ' · demo' : ''}</div>
-                  <div className="t2">{o.start && o.end ? `${fmtRange(o.start, o.end).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase())} · ` : ''}{o.stops} stops</div>
-                </span>
-                <Icon name="chevron_right" />
-              </button>
-            ))}
-            {isDemo && (
-              <button className="trip-row" onClick={() => setSheet({ kind: 'trip', initial: null })}>
-                <span className="thumb" />
-                <span><div className="t1">Plan a real trip</div><div className="t2">Add your stops, share the link with your group</div></span>
-                <Icon name="add" />
-              </button>
-            )}
+            {expanded && <Timeline trip={trip} current={current} live={live} h={h} skip={next?.r.id} />}
           </div>
         ) : (
           <Split trip={trip} me={meId} rates={rates} onOpen={e => setSheet({ kind: 'exp', initial: e })} onUpdate={saveExp}
@@ -194,16 +170,18 @@ export function App({ token }: { token: string }) {
         )}
 
         <nav className="tabbar" aria-label="Sections">
-          <button className={`tab ${tab === 'trip' ? 'on' : ''}`} onClick={() => setTab('trip')} aria-current={tab === 'trip' ? 'page' : undefined}><Icon name="map" fill={tab === 'trip'} />Trip</button>
+          <button className={`tab ${tab === 'trip' ? 'on' : ''}`} onClick={() => setTab('trip')} aria-current={tab === 'trip' ? 'page' : undefined}>Trip</button>
           <button className="fab" aria-label={tab === 'trip' ? 'New reservation' : 'New expense'}
             onClick={() => (tab === 'trip' ? openRes(null, { stopId: current?.id }) : setSheet({ kind: 'exp', initial: null }))}>
             <Icon name="add" />
           </button>
-          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}><Icon name="receipt_long" fill={tab === 'split'} />Split</button>
+          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}>Split</button>
         </nav>
 
         {stopForSheet && (
-          <StopSheet trip={trip} stop={stopForSheet} live={live} onClose={() => setSheet(null)} onOpen={r => openRes(r)}
+          <StopSheet trip={trip} stop={stopForSheet} live={live} me={meId} onClose={() => setSheet(null)} onOpen={r => openRes(r)}
+            onSaveRecs={recs => void mutate({ kind: 'setRecs', recs })}
+            onEditProfile={() => setSheet({ kind: 'profile', firstTime: false, back: sheet ?? undefined })}
             onAdd={() => openRes(null, { stopId: stopForSheet.id, type: trip.reservations.some(r => r.stopId === stopForSheet.id && r.type === 'hotel') ? 'activity' : 'hotel' })} />
         )}
         {sheet?.kind === 'res' && (
@@ -213,12 +191,25 @@ export function App({ token }: { token: string }) {
           <ExpenseSheet trip={trip} me={meId} initial={sheet.initial} onSave={saveExp} onDelete={deleteExp} onClose={() => setSheet(null)} notify={notify} />
         )}
         {sheet?.kind === 'trip' && <TripForm initial={sheet.initial} onSave={saveTrip} onClose={() => setSheet(null)} />}
+        {sheet?.kind === 'menu' && (
+          <TripMenu onClose={() => setSheet(null)} onPick={k => setSheet(k === 'profile' ? { kind: 'profile', firstTime: false } : k === 'trip' ? { kind: 'trip', initial: trip } : { kind: k })}
+            liveTimes={needsLocation ? () => { setLocPref(true); setSheet(null); } : undefined} isDemo={isDemo} />
+        )}
         {sheet?.kind === 'share' && <ShareSheet trip={trip} shared={shared} onClose={() => setSheet(null)} onEdit={() => setSheet({ kind: 'trip', initial: trip })} />}
         {sheet?.kind === 'demo' && (
           <DemoPanel sim={sim} setSim={setSim} trip={trip} now={now} me={meId} setMe={setMe} loc={loc} onReset={resetDemo} onClose={() => setSheet(null)} />
         )}
         {(sheet?.kind === 'who' || (!me && !trip.isDemo)) && (
-          <WhoAreYou trip={trip} onPick={id => { setMe(id); setSheet(null); }} onClose={me ? () => setSheet(null) : undefined} />
+          <WhoAreYou trip={trip} onClose={me ? () => setSheet(null) : undefined} onPick={id => {
+            setMe(id);
+            // First time on this trip: ask what they love, so recommendations can be made for them.
+            const t = trip.travelers.find(x => x.id === id);
+            setSheet(t?.profile ? null : { kind: 'profile', firstTime: true });
+          }} />
+        )}
+        {sheet?.kind === 'profile' && meT && (
+          <ProfileSheet traveler={meT} firstTime={sheet.firstTime} onClose={() => setSheet(sheet.back ?? null)}
+            onSave={profile => void mutate({ kind: 'upsertProfile', travelerId: meT.id, profile })} />
         )}
 
         {toast && (

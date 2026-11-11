@@ -21,6 +21,30 @@ export function WhoAreYou({ trip, onPick, onClose }: { trip: Trip; onPick: (id: 
   );
 }
 
+type MenuKey = 'share' | 'trip' | 'profile' | 'demo';
+
+/** Everything that used to crowd the trip screen, one tap away. */
+export function TripMenu({ onPick, onClose, liveTimes, isDemo }: {
+  onPick: (k: MenuKey) => void; onClose: () => void; liveTimes?: () => void; isDemo: boolean;
+}) {
+  const row = (icon: string, label: string, sub: string, run: () => void) => (
+    <button className="menu-row" onClick={run}>
+      <Icon name={icon} /><span><b>{label}</b><small>{sub}</small></span><Icon name="chevron_right" />
+    </button>
+  );
+  return (
+    <Sheet label="Trip options" title="This trip" onClose={onClose}>
+      <div className="menu">
+        {row('ios_share', 'Share', 'Send the link to your group', () => onPick('share'))}
+        {row('edit', 'Edit trip', 'Stops, dates and travelers', () => onPick('trip'))}
+        {row('favorite', 'Your interests', 'What your picks are based on', () => onPick('profile'))}
+        {liveTimes && row('near_me', 'Live leave-by times', 'Uses your location while the app is open', liveTimes)}
+        {isDemo && row('tune', 'Demo controls', 'Move the clock, switch traveler', () => onPick('demo'))}
+      </div>
+    </Sheet>
+  );
+}
+
 export function ShareSheet({ trip, shared, onClose, onEdit }: { trip: Trip; shared: boolean; onClose: () => void; onEdit: () => void }) {
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${trip.token}` : '';
   const [copied, setCopied] = useState(false);
@@ -56,7 +80,7 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
   return (
     <Sheet label="Demo controls" title="Demo controls" onClose={onClose}>
       <div className="demo-panel">
-        <p className="help" style={{ fontSize: 14, marginTop: 0 }}>You’re not in Vienna, so move the clock to see the train tile go from on track to at risk.</p>
+        <p className="help" style={{ fontSize: 14, marginTop: 0 }}>It’s Day 1 and you’ve just landed. Move the clock to watch today’s Belvedere tickets go from on track to at risk.</p>
         <div className="row">
           <div className="clock">{local} <span className="clock-sub">Vienna{sim.offsetMin ? ` · +${fmtDuration(sim.offsetMin)}` : ' · now'}</span></div>
           <input className="range" type="range" min={0} max={150} step={5} value={sim.offsetMin}
@@ -81,7 +105,7 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
           <div className="chips">
             {trip.travelers.map(t => (
               <button key={t.id} className={`chip small ${me === t.id ? 'on' : ''}`} onClick={() => setMe(t.id)}>
-                <span className="av" style={{ background: me === t.id ? 'rgba(255,255,255,.3)' : t.color }}>{t.name[0]}</span>{t.name}{t.id === trip.adminId ? ' (admin)' : ''}
+                <span className="av" style={{ background: me === t.id ? undefined : t.color }}>{t.name[0]}</span>{t.name}{t.id === trip.adminId ? ' (admin)' : ''}
               </button>
             ))}
           </div>

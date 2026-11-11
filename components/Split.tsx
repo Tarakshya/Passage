@@ -8,13 +8,8 @@ import { fmtDay } from '@/lib/time';
 import type { Expense, Trip } from '@/lib/types';
 import { Avatar, Icon } from './ui';
 
-const CAT: Record<Expense['category'], { icon: string; fg: string; bg: string }> = {
-  stay: { icon: 'hotel', fg: '#2E9E7E', bg: '#EEF6F2' },
-  transit: { icon: 'train', fg: '#2F82B4', bg: '#EEF3F7' },
-  food: { icon: 'restaurant', fg: '#D89A3E', bg: '#FBEFDD' },
-  taxi: { icon: 'local_taxi', fg: '#6E675E', bg: '#EFEBE4' },
-  activity: { icon: 'local_activity', fg: '#B4477E', bg: '#F6E5EE' },
-  other: { icon: 'receipt_long', fg: '#6E675E', bg: '#EFEBE4' },
+const CAT: Record<Expense['category'], string> = {
+  stay: 'hotel', transit: 'train', food: 'restaurant', taxi: 'local_taxi', activity: 'local_activity', other: 'receipt_long',
 };
 
 export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
@@ -44,7 +39,7 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
     <div className="screen">
       <div className="screen-head">
         <div>
-          <h1 className="screen-title" style={{ fontSize: 28 }}>Split</h1>
+          <h1 className="screen-title">Split</h1>
           <p className="screen-sub">{trip.name.replace('–', ' → ')} group</p>
         </div>
         <button className="avatars" onClick={onSwitchMe} aria-label={`Travelers. You are ${meT?.name}. Switch`}>
@@ -68,10 +63,10 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
             );
           })}
           {others.map(t => (
-            <div className="p" key={`${t.from}-${t.to}`} style={{ opacity: .7 }}>
+            <div className="p" key={`${t.from}-${t.to}`}>
               <Avatar t={trip.travelers.find(x => x.id === t.from)!} small />
               <span>{name(t.from)} owes {name(t.to)}</span>
-              <span className="amt" style={{ color: '#fff' }}>{fmtMoney(t.amount, base)}</span>
+              <span className="amt plain">{fmtMoney(t.amount, base)}</span>
             </div>
           ))}
           {error && <div className="fx">Can’t convert every currency right now.</div>}
@@ -93,7 +88,7 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
 
       <div className="section-h">
         <h3>Activity</h3>
-        <span className="tag"><Icon name="group" />Shared log</span>
+        <span className="tag">Shared log</span>
       </div>
 
       {pending.map(e => (
@@ -138,7 +133,7 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
         const n = e.splitWith.length;
         return (
           <button className="exp" key={e.id} onClick={() => onOpen(e)}>
-            <span className="ic" style={{ background: c.bg, color: c.fg }}><Icon name={c.icon} fill /></span>
+            <span className="ic"><Icon name={c} /></span>
             <div style={{ minWidth: 0 }}>
               <div className="t1">{e.title}</div>
               <div className="t2">{name(e.payerId)} paid · {n === 1 ? `for ${name(e.splitWith[0])}` : `split ${n} ways`}{e.autoScanned ? ' · scanned' : ''}</div>

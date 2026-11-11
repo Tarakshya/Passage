@@ -8,6 +8,7 @@ const mode = z.enum(['flight', 'train', 'ferry', 'bus', 'car']);
 const resType = z.enum(['hotel', 'flight', 'train', 'ferry', 'bus', 'car', 'activity', 'dinner']);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const local = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+export const REC_KINDS = ['food', 'drink', 'sight', 'museum', 'outdoors', 'shop', 'nightlife', 'experience'] as const;
 
 const place = z.object({ name: z.string(), country: z.string().length(2), lat: z.number(), lng: z.number(), tz: z.string() });
 
@@ -19,7 +20,10 @@ export const TripSchema = z.object({
   baseCurrency: currency,
   adminId: z.string(),
   isDemo: z.boolean(),
-  travelers: z.array(z.object({ id: z.string(), name: z.string(), color: z.string() })),
+  travelers: z.array(z.object({
+    id: z.string(), name: z.string(), color: z.string(),
+    profile: z.object({ interests: z.array(z.string()), link: z.string().nullable(), updatedAt: z.string() }).nullable().optional(),
+  })),
   stops: z.array(place.extend({ id: z.string(), order: z.number(), arrive: date, depart: date })),
   legs: z.array(z.object({ id: z.string(), from: z.string().nullable(), to: z.string().nullable(), mode, title: z.string() })),
   reservations: z.array(z.object({
@@ -38,6 +42,15 @@ export const TripSchema = z.object({
     autoScanned: z.boolean(), pendingAmount: z.number().int().nullable(), pendingBy: z.string().nullable(),
     createdAt: z.string(),
   })),
+  recs: z.record(z.string(), z.object({
+    stopId: z.string(), travelerId: z.string(), generatedAt: z.string(),
+    basis: z.object({ interests: z.array(z.string()), link: z.string().nullable() }),
+    items: z.array(z.object({
+      name: z.string(), kind: z.enum(REC_KINDS), why: z.string(), interest: z.string(),
+      area: z.string(), distance: z.string(), url: z.string().nullable(),
+      klook: z.object({ url: z.string(), price: z.string().nullable(), was: z.string().nullable() }).nullable().optional(),
+    })),
+  })).optional(),
 });
 
 export function parseTrip(data: unknown): Trip {
@@ -81,3 +94,14 @@ export const ReceiptScanSchema = z.object({
   category: field(z.enum(['stay', 'transit', 'food', 'taxi', 'activity', 'other'])),
 });
 export type ReceiptScan = z.infer<typeof ReceiptScanSchema>;
+
+// ---------- What Claude returns from /api/recommend ----------
+
+export const RecsResultSchema = z.object({
+  items: z.array(z.object({
+    name: z.string(), kind: z.enum(REC_KINDS), why: z.string(), interest: z.string(),
+    area: z.string(), distance: z.string(), url: z.string().nullable(),
+    klook_url: z.string().nullable(), klook_price: z.string().nullable(), official_price: z.string().nullable(),
+  })).min(1).max(6),
+});
+export type RecsResult = z.infer<typeof RecsResultSchema>;

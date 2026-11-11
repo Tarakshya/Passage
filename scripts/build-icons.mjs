@@ -11,7 +11,7 @@ const text = files.map(f => readFileSync(existsSync(join('components', f)) ? joi
 // Only lines that mention an icon: <Icon name=…>, TYPE_ICON, icon: '…', LIVE_ICON, etc.
 const iconLines = text.split('\n').filter(l => /icon|Icon|ICON/.test(l)).join('\n');
 // Icons reached only through multi-line maps (TYPE_ICON) are listed explicitly.
-const EXTRA = ['flight', 'train', 'directions_boat', 'directions_bus', 'directions_car', 'hotel', 'local_activity', 'restaurant'];
+const EXTRA = ['flight', 'train', 'directions_boat', 'directions_bus', 'directions_car', 'hotel', 'local_activity', 'restaurant', 'local_bar', 'museum', 'park', 'shopping_bag', 'nightlife'];
 const candidates = new Set([...EXTRA, ...[...iconLines.matchAll(/['"`]([a-z][a-z0-9_]{1,40})['"`]/g)].map(m => m[1])]);
 const pathOf = file => readFileSync(join(SRC, file), 'utf8').match(/ d="([^"]+)"/)?.[1];
 

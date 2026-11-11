@@ -34,22 +34,24 @@ create table if not exists expenses (
   primary key (trip_id, id)
 );
 
-create table if not exists scan_usage (
+-- Daily quotas for the paid Claude features, per trip and kind ('scan', 'recs').
+create table if not exists ai_usage (
   token text not null,
+  kind text not null,
   day date not null,
   count int not null default 0,
-  primary key (token, day)
+  primary key (token, kind, day)
 );
 
 alter table trips enable row level security;
 alter table reservations enable row level security;
 alter table expenses enable row level security;
-alter table scan_usage enable row level security;
+alter table ai_usage enable row level security;
 
 -- The trip document holds everything except bookings and expenses, which live in their own rows
 -- so two people adding expenses at once never overwrite each other.
 create or replace function trip_doc(p jsonb) returns jsonb language sql immutable as $$
-  select p - 'id' - 'token' - 'isDemo' - 'reservations' - 'expenses'
+  select p - 'id' - 'token' - 'isDemo' - 'reservations' - 'expenses' - 'recs'
 $$;
 
 create or replace function get_trip(p_token text) returns jsonb
@@ -104,8 +106,24 @@ begin
       on conflict (trip_id, id) do update set data = excluded.data, updated_at = now();
   elsif v_kind = 'deleteExpense' then
     delete from expenses where trip_id = v_id and id = p_m->>'id';
+  elsif v_kind = 'upsertProfile' then
+    update trips set data = jsonb_set(data, '{travelers}', (
+      select jsonb_agg(case when t->>'id' = p_m->>'travelerId' then t || jsonb_build_object('profile', p_m->'profile') else t end)
+      from jsonb_array_elements(data->'travelers') t
+    )), updated_at = now() where id = v_id;
+  elsif v_kind = 'setRecs' then
+    update trips set data = data || jsonb_build_object('recs',
+      coalesce(data->'recs', '{}'::jsonb) || jsonb_build_object((p_m->'recs'->>'stopId') || ':' || (p_m->'recs'->>'travelerId'), p_m->'recs')
+    ), updated_at = now() where id = v_id;
   elsif v_kind = 'replaceTrip' then
-    update trips set data = trip_doc(p_m->'trip'), updated_at = now() where id = v_id;
+    -- Keep profiles and recommendations: they are edited on their own.
+    update trips set data = trip_doc(p_m->'trip')
+      || jsonb_build_object('recs', coalesce(data->'recs', '{}'::jsonb))
+      || jsonb_build_object('travelers', (
+        select jsonb_agg(case when old.t is not null and old.t ? 'profile' then nt || jsonb_build_object('profile', old.t->'profile') else nt end)
+        from jsonb_array_elements(p_m->'trip'->'travelers') nt
+        left join lateral (select o as t from jsonb_array_elements(data->'travelers') o where o->>'id' = nt->>'id' limit 1) old on true
+      )), updated_at = now() where id = v_id;
     -- Bookings on stops or legs that no longer exist go with them.
     delete from reservations r where r.trip_id = v_id and not exists (
       select 1 from jsonb_array_elements(p_m->'trip'->'stops') s where s->>'id' = r.data->>'stopId'
@@ -117,17 +135,18 @@ begin
   end if;
 end $$;
 
--- Daily scan quota, checked by /api/scan before it calls Claude.
-create or replace function take_scan(p_token text, p_limit int) returns boolean
+-- Daily quota, checked by /api/scan and /api/recommend before they call Claude.
+create or replace function take_quota(p_token text, p_kind text, p_limit int) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare v_count int;
 begin
+  if p_kind not in ('scan', 'recs') then return false; end if;
   if p_token <> 'demo' and not exists (select 1 from trips where token = p_token) then return false; end if;
-  insert into scan_usage (token, day, count) values (p_token, current_date, 1)
-    on conflict (token, day) do update set count = scan_usage.count + 1
+  insert into ai_usage (token, kind, day, count) values (p_token, p_kind, current_date, 1)
+    on conflict (token, kind, day) do update set count = ai_usage.count + 1
     returning count into v_count;
   return v_count <= p_limit;
 end $$;
 
-revoke all on function get_trip(text), create_trip(jsonb), apply_mutation(text, jsonb), take_scan(text, int) from public;
-grant execute on function get_trip(text), create_trip(jsonb), apply_mutation(text, jsonb), take_scan(text, int) to anon, authenticated;
+revoke all on function get_trip(text), create_trip(jsonb), apply_mutation(text, jsonb), take_quota(text, text, int) from public;
+grant execute on function get_trip(text), create_trip(jsonb), apply_mutation(text, jsonb), take_quota(text, text, int) to anon, authenticated;

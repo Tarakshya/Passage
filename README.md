@@ -1,17 +1,18 @@
 # Passage
 
-A calm, shared trip planner for a small group on a multi-city trip.
+A shared trip planner for a small group on a multi-city trip. Your trip is a boarding pass: one route, one thing to do next.
 
 - **One timeline** of every stop and how you travel between them, with what is still left to book.
 - **Screenshot import.** Drop in a booking confirmation or a receipt and Claude fills in the form. You check it, then save.
 - **Live leave-by times.** Every booking in the next 24 hours shows whether you will make it, worked out from the time, where you are and where the booking is.
+- **Picked for you.** Each traveler chooses five interests and can share a page they love. In any city, Claude searches the web for a few things near where you're staying, made for that person. Where Klook really sells one of them, the pick shows Klook's price and link; where it doesn't, it shows nothing.
 - **A shared split.** Anyone with the link logs what they paid. Balances are converted to one currency and settled in the fewest payments, and edits to scanned bills need the admin's approval.
 
 It installs from a link (Add to Home Screen), has no accounts, and opens with no signal.
 
-**Try it:** open `/t/demo` on a phone. The demo trip is always in progress, so tap **Demo** and move the clock to watch the train to Attnang-Puchheim go from *on track* to *at risk*.
+**Try it:** open the app on a phone and tap the sample trip (or go straight to `/t/demo`). The demo trip is always in progress, so tap **Demo** and move the clock to watch today's Belvedere tickets go from *on track* to *at risk*.
 
-> Portfolio product by Tarakshya Mehrish. Design: Passage "Direction 1a". See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the decisions behind it.
+> Portfolio product by Tarakshya Mehrish. Design: "Boarding Pass" (Cormorant Garamond + Jost). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the decisions behind it.
 
 ## Run it locally
 
@@ -35,7 +36,7 @@ The share link for a trip is `https://<your-domain>/t/<token>`.
 ## Checks
 
 ```bash
-npm test             # 34 unit tests: time zones, live status, balances, approvals, scan route
+npm test             # 50 unit tests: time zones, live status, balances, approvals, maps, scan + recommend routes
 npm run typecheck
 npm run build
 npm run eval:scan    # scan accuracy against real documents, see evals/README.md
@@ -44,15 +45,19 @@ npm run eval:scan    # scan accuracy against real documents, see evals/README.md
 ## Layout
 
 ```
-app/                 routes: /t/[token] (the app), /api/scan (Claude), /api/fx (exchange rates)
+app/                 routes: /t/[token] (the app), /api/scan + /api/recommend (Claude), /api/fx (rates)
 components/          screens and sheets; icons.generated.ts from scripts/build-icons.mjs
 lib/
   live-status.ts     the leave-by engine (pure, tested)
   balances.ts        integer-cent splits, currency conversion, settle-up (pure, tested)
-  scan-prompt.ts     system prompt + strict tool schemas for Claude
+  scan-prompt.ts     system prompt + strict tool schemas for reading bookings
+  recommend-prompt.ts  web search + fetch tools, prompt and JSON schema for picks
+  klook.ts             the rules for when a Klook link or price may be shown
+  home.ts              greeting, route codes and "next up" for the home screen
   store.ts           LocalStore (demo) and SupabaseStore (shared, offline outbox)
   mutations.ts       every change to a trip, plus the scanned-bill approval rule
 supabase/schema.sql  tables + token-keyed security-definer functions
+supabase/smoke-test.sql  checks those functions against a real Postgres
 evals/               scan eval cases and results
 tests/               Vitest
 ```

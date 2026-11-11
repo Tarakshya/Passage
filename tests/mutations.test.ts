@@ -44,3 +44,25 @@ describe('mutations', () => {
     expect(newToken()).not.toBe(a);
   });
 });
+
+describe('profiles and recommendations', () => {
+  const profile = { interests: ['a', 'b', 'c', 'd', 'e'], link: null, updatedAt: '2026-11-06T00:00:00Z' };
+  const recs = { stopId: 'vie', travelerId: 'sam', items: [], basis: { interests: [], link: null }, generatedAt: 'x' };
+  it('sets a profile on one traveler only', () => {
+    const t = applyMutation(trip, { kind: 'upsertProfile', travelerId: 'sam', profile });
+    expect(t.travelers.find(x => x.id === 'sam')!.profile).toEqual(profile);
+    expect(t.travelers.find(x => x.id === 'priya')!.profile).toEqual(trip.travelers.find(x => x.id === 'priya')!.profile);
+  });
+  it('stores recommendations per city and traveler', () => {
+    const t = applyMutation(trip, { kind: 'setRecs', recs });
+    expect(t.recs!['vie:sam']).toEqual(recs);
+  });
+  it('a trip edit never wipes profiles or recommendations', () => {
+    const withBoth = applyMutation(applyMutation(trip, { kind: 'upsertProfile', travelerId: 'sam', profile }), { kind: 'setRecs', recs });
+    const edited = { ...withBoth, name: 'Renamed', travelers: withBoth.travelers.map(t => ({ ...t, profile: null })), recs: undefined };
+    const out = applyMutation(withBoth, { kind: 'replaceTrip', trip: edited });
+    expect(out.name).toBe('Renamed');
+    expect(out.travelers.find(x => x.id === 'sam')!.profile).toEqual(profile);
+    expect(out.recs!['vie:sam']).toEqual(recs);
+  });
+});
