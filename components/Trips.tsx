@@ -101,20 +101,22 @@ export function Trips({ clean = false }: { clean?: boolean }) {
         <div className="wordmark">Passage</div>
         <h1 className="screen-title">{timeOfDay(now)}.</h1>
         <p className="screen-sub">
-          {sorted.length ? 'Your trips' : empty ? 'Plan a trip and everything about it lives in one place.' : 'Here’s a sample trip to explore, or plan your own.'}
+          {sorted.length ? 'Your trips' : empty ? 'Plan a trip.' : 'Here’s a sample trip to explore, or plan your own.'}
         </p>
 
         {!list && <div className="skeleton" style={{ height: 150, marginTop: 22 }} />}
         {empty ? (
           <div className="first-trip">
-            <ul>
-              <li>Your route, city by city, with what’s still to book</li>
-              <li>Add a booking from a screenshot, read by Claude</li>
-              <li>Live “leave by” times on the day</li>
-              <li>Things picked for you in every city</li>
-              <li>Who paid what, settled up</li>
-            </ul>
-            <button className="btn-primary" onClick={() => setCreating(true)}>Plan your first trip</button>
+            <h2 className="how">How it works</h2>
+            <ol className="tips">
+              <li><b>Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
+              <li><b>Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
+              <li><b>Tap a city</b> to see everything booked there, plus places curated for your interests.</li>
+              <li><b><span className="late">Next Up</span> warns when you’re running late.</b></li>
+              <li><b>Log what you pay in the Ledger.</b> Scan a receipt; Passage works out who owes whom.</li>
+              <li><b>Add it to your home screen</b> from your browser’s Share menu. It opens like an app and works offline.</li>
+            </ol>
+            <button className="btn-primary" onClick={() => setCreating(true)}>Plan a trip</button>
           </div>
         ) : (
           <>

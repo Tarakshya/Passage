@@ -64,6 +64,8 @@ export function App({ token }: { token: string }) {
     try { ask = localStorage.getItem(k) === '1'; localStorage.removeItem(k); } catch { /* ignore */ }
     if (ask && !trip.travelers.find(t => t.id === me)?.profile) setSheet({ kind: 'profile', firstTime: true });
   }, [trip?.token, me]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The trip's name on <body>, so review notes can say which trip a note was made on.
+  useEffect(() => { if (trip) document.body.dataset.trip = trip.name; return () => { delete document.body.dataset.trip; }; }, [trip?.name]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4200); return () => clearTimeout(t); }, [toast]);
 
   const notify = useCallback((msg: string, action?: { label: string; run: () => void }) => setToast({ msg, action }), []);
@@ -175,7 +177,7 @@ export function App({ token }: { token: string }) {
             onClick={() => (tab === 'trip' ? openRes(null, { stopId: current?.id }) : setSheet({ kind: 'exp', initial: null }))}>
             <Icon name="add" />
           </button>
-          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}>Split</button>
+          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}>Ledger</button>
         </nav>
 
         {stopForSheet && (

@@ -7,6 +7,7 @@ import '@fontsource/jost/latin-500.css';
 import '@fontsource/jost/latin-ext-400.css';
 import './globals.css';
 import { RegisterSW } from '@/components/RegisterSW';
+import { ReviewNotes } from '@/components/ReviewNotes';
 
 export const metadata: Metadata = {
   title: 'Passage',
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <RegisterSW />
+        <ReviewNotes />
       </body>
     </html>
   );

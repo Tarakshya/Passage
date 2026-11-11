@@ -6,7 +6,7 @@ A shared trip planner for a small group on a multi-city trip. Your trip is a boa
 - **Screenshot import.** Drop in a booking confirmation or a receipt and Claude fills in the form. You check it, then save.
 - **Live leave-by times.** Every booking in the next 24 hours shows whether you will make it, worked out from the time, where you are and where the booking is.
 - **Picked for you.** Each traveler chooses five interests and can share a page they love. In any city, Claude searches the web for a few things near where you're staying, made for that person. Where Klook really sells one of them, the pick shows Klook's price and link; where it doesn't, it shows nothing.
-- **A shared split.** Anyone with the link logs what they paid. Balances are converted to one currency and settled in the fewest payments, and edits to scanned bills need the admin's approval.
+- **A shared ledger.** Anyone with the link logs what they paid. Balances are converted to one currency and settled in the fewest payments, and edits to scanned bills need the admin's approval.
 
 It installs from a link (Add to Home Screen), has no accounts, and opens with no signal.
 

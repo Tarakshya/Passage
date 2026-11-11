@@ -39,7 +39,7 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
     <div className="screen">
       <div className="screen-head">
         <div>
-          <h1 className="screen-title">Split</h1>
+          <h1 className="screen-title">Ledger</h1>
           <p className="screen-sub">{trip.name.replace('–', ' → ')} group</p>
         </div>
         <button className="avatars" onClick={onSwitchMe} aria-label={`Travelers. You are ${meT?.name}. Switch`}>
