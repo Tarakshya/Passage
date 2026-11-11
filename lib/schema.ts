@@ -72,6 +72,8 @@ export const BookingScanSchema = z.object({
   endLocal: field(local),
   endTz: field(z.string()),
   address: field(z.string()),
+  // Added later; optional so a reply without it still parses.
+  city: field(z.string()).optional(),
   route: field(z.string()),
   service: field(z.string()),
   seat: field(z.string()),

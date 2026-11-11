@@ -42,9 +42,14 @@ export function Sheet({
   tall?: boolean; dark?: boolean; hero?: ReactNode; label: string; className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // The latest onClose, read through a ref: parents re-render often (the clock ticks every 30 s)
+  // and pass a new function each time. Re-running the effect below on each render used to pull
+  // focus back to the sheet, which closed any open date picker or keyboard mid-use.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     const { overflow } = document.body.style;
     document.body.style.overflow = 'hidden';
@@ -54,7 +59,7 @@ export function Sheet({
       document.body.style.overflow = overflow;
       prev?.focus?.({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
   return (
     <div className={`backdrop ${dark ? 'dark' : ''}`} onClick={onClose}>
       <div className="sheet-wrap">

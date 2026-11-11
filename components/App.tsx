@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DEMO_TOKEN } from '@/lib/demo';
 import {
-  DEMO_HOTEL, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTrip, type Sim,
+  DEMO_HOTEL, forgetTrip, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTrip, type Sim,
 } from '@/lib/hooks';
 import { nextUp } from '@/lib/home';
 import { isTracked, liveStatus, type LiveStatus } from '@/lib/live-status';
@@ -195,7 +195,12 @@ export function App({ token }: { token: string }) {
         {sheet?.kind === 'trip' && <TripForm initial={sheet.initial} onSave={saveTrip} onClose={() => setSheet(null)} />}
         {sheet?.kind === 'menu' && (
           <TripMenu onClose={() => setSheet(null)} onPick={k => setSheet(k === 'profile' ? { kind: 'profile', firstTime: false } : k === 'trip' ? { kind: 'trip', initial: trip } : { kind: k })}
-            liveTimes={needsLocation ? () => { setLocPref(true); setSheet(null); } : undefined} isDemo={isDemo} />
+            liveTimes={needsLocation ? () => { setLocPref(true); setSheet(null); } : undefined} isDemo={isDemo}
+            onDelete={() => {
+              if (isDemo) { try { localStorage.setItem('passage:nosample', '1'); } catch { /* ignore */ } }
+              else forgetTrip(token);
+              router.push('/');
+            }} />
         )}
         {sheet?.kind === 'share' && <ShareSheet trip={trip} shared={shared} onClose={() => setSheet(null)} onEdit={() => setSheet({ kind: 'trip', initial: trip })} />}
         {sheet?.kind === 'demo' && (

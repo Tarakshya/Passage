@@ -50,6 +50,7 @@ export const BOOKING_TOOL: Anthropic.Tool = {
     endLocal: field(text(), `Check-out or arrival. ${LOCAL}`),
     endTz: field(text(), 'IANA time zone of the end place.'),
     address: field(text(), 'Street address of the hotel or venue, or the departure station/airport name.'),
+    city: field(text(), 'City or town the booking is in, in English (for transit: the destination city), e.g. "Gmunden", "Vienna".'),
     route: field(text(), 'Transit only: "Origin station → Destination station" or "VIE → DBV".'),
     service: field(text(), 'Transit only: train, flight or ferry number, e.g. "IC 548", "OS 8291".'),
     seat: field(text(), 'Seat, coach, cabin or room type.'),
