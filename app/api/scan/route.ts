@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { takeScan } from '@/lib/rate-limit';
-import { BOOKING_TOOL, contextText, RECEIPT_TOOL, SCAN_MODEL, SYSTEM_PROMPT } from '@/lib/scan-prompt';
+import { fromToolInput, BOOKING_TOOL, contextText, RECEIPT_TOOL, SCAN_MODEL, SYSTEM_PROMPT } from '@/lib/scan-prompt';
 import { BookingScanSchema, ReceiptScanSchema } from '@/lib/schema';
 
 export const runtime = 'nodejs';
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
     const use = msg.content.find(b => b.type === 'tool_use');
     const schema = body.kind === 'booking' ? BookingScanSchema : ReceiptScanSchema;
-    const parsed = schema.safeParse(use && 'input' in use ? use.input : null);
+    const parsed = schema.safeParse(fromToolInput(use && 'input' in use ? use.input : null, ['price', 'total']));
 
     console.log(JSON.stringify({
       event: 'scan', kind: body.kind, model: SCAN_MODEL, ok: parsed.success, ms: Date.now() - started,
