@@ -79,6 +79,29 @@ function rememberTrip(trip: Trip) {
   } catch { /* storage unavailable */ }
 }
 
+/**
+ * Removes a trip from this phone: from the trips list and its saved copy, outbox and settings.
+ * Returns a snapshot that `restoreTrip` puts back (for Undo). For a shared trip this only
+ * forgets it here; the trip itself stays for everyone else with the link.
+ */
+export function forgetTrip(token: string): Record<string, string> {
+  const snap: Record<string, string> = {};
+  try {
+    const keys = [KNOWN, ...['trip', 'cache', 'outbox', 'me', 'loc', 'askprofile'].map(k => `passage:${k}:${token}`)];
+    for (const k of keys) {
+      const v = localStorage.getItem(k);
+      if (v !== null) snap[k] = v;
+    }
+    localStorage.setItem(KNOWN, JSON.stringify(knownTrips().filter(t => t.token !== token)));
+    for (const k of keys.slice(1)) localStorage.removeItem(k);
+  } catch { /* storage unavailable */ }
+  return snap;
+}
+
+export function restoreTrip(snap: Record<string, string>) {
+  try { for (const [k, v] of Object.entries(snap)) localStorage.setItem(k, v); } catch { /* ignore */ }
+}
+
 // ---------- Identity ("who are you?") ----------
 
 export function useMe(trip: Trip | null): [string | null, (id: string) => void] {

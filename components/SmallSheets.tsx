@@ -24,9 +24,10 @@ export function WhoAreYou({ trip, onPick, onClose }: { trip: Trip; onPick: (id: 
 type MenuKey = 'share' | 'trip' | 'profile' | 'demo';
 
 /** Everything that used to crowd the trip screen, one tap away. */
-export function TripMenu({ onPick, onClose, liveTimes, isDemo }: {
-  onPick: (k: MenuKey) => void; onClose: () => void; liveTimes?: () => void; isDemo: boolean;
+export function TripMenu({ onPick, onClose, liveTimes, isDemo, onDelete }: {
+  onPick: (k: MenuKey) => void; onClose: () => void; liveTimes?: () => void; isDemo: boolean; onDelete: () => void;
 }) {
+  const [sure, setSure] = useState(false);
   const row = (icon: string, label: string, sub: string, run: () => void) => (
     <button className="menu-row" onClick={run}>
       <Icon name={icon} /><span><b>{label}</b><small>{sub}</small></span><Icon name="chevron_right" />
@@ -40,6 +41,10 @@ export function TripMenu({ onPick, onClose, liveTimes, isDemo }: {
         {row('favorite', 'Your interests', 'What your picks are based on', () => onPick('profile'))}
         {liveTimes && row('near_me', 'Live leave-by times', 'Uses your location while the app is open', liveTimes)}
         {isDemo && row('tune', 'Demo controls', 'Move the clock, switch traveler', () => onPick('demo'))}
+        <button className="menu-row danger" onClick={() => (sure ? onDelete() : setSure(true))}>
+          <Icon name="delete" />
+          <span><b>{sure ? 'Tap again to delete' : isDemo ? 'Hide the sample trip' : 'Delete trip'}</b><small>{isDemo ? 'You can bring it back from the home screen' : 'Removes it from this phone'}</small></span>
+        </button>
       </div>
     </Sheet>
   );

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { searchPlaces, type PlaceHit } from '@/lib/geo';
+import { prepareFile, scan } from '@/lib/scan-client';
+import { cityQuery, stopFromBooking, type StopFill } from '@/lib/stop-from-booking';
 import { newId, newToken } from '@/lib/mutations';
 import { addDays, todayIn } from '@/lib/time';
 import { flag, sortedStops } from '@/lib/trip';
-import type { Currency, Leg, Mode, Place, Stop, Traveler, Trip } from '@/lib/types';
+import type { Currency, Leg, Mode, Place, Reservation, Stop, Traveler, Trip } from '@/lib/types';
 import { Icon, Sheet, TYPE_ICON } from './ui';
 
 // Avatar colours: all light enough to carry navy initials on the dark theme.
@@ -15,6 +17,7 @@ const CURRENCIES: Currency[] = ['EUR', 'INR', 'USD', 'GBP', 'CHF', 'JPY'];
 
 function PlaceSearch({ value, onPick, placeholder, label }: { value: Place | null; onPick: (p: PlaceHit) => void; placeholder: string; label: string }) {
   const [q, setQ] = useState(value?.name ?? '');
+  useEffect(() => { if (value?.name) setQ(value.name); }, [value?.name]);
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState(false);
@@ -50,7 +53,12 @@ function PlaceSearch({ value, onPick, placeholder, label }: { value: Place | nul
   );
 }
 
-interface StopDraft { id: string; place: Place | null; arrive: string; depart: string }
+interface StopDraft {
+  id: string; place: Place | null; arrive: string; depart: string;
+  /** A hotel booking this stop was filled from; saved as a booked stay with the trip. */
+  stay?: StopFill['stay'];
+}
+type FillState = { kind: 'busy' } | { kind: 'done'; title: string } | { kind: 'error'; message: string };
 
 export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; onSave: (t: Trip) => Promise<void>; onClose: () => void }) {
   const today = todayIn(Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -66,6 +74,29 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  // Fixed up front so a booking scanned while creating the trip counts toward this trip's quota.
+  const [token] = useState(() => initial?.token ?? newToken());
+  const [fill, setFill] = useState<Record<string, FillState>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
+  const fillFor = useRef<string | null>(null);
+
+  async function fillStop(stopId: string, file: File) {
+    setFill(f => ({ ...f, [stopId]: { kind: 'busy' } }));
+    const fail = (message: string) => setFill(f => ({ ...f, [stopId]: { kind: 'error', message } }));
+    let media;
+    try { media = await prepareFile(file); } catch (e) { fail((e as Error).message); return; }
+    const res = await scan('booking', token, media, { tripName: name.trim() || 'New trip', today, stops: [], legs: [] });
+    if (!res.ok) { fail(res.message); return; }
+    const q = cityQuery(res.result);
+    if (!res.result.isBooking || !q) { fail(res.result.reason ?? 'Couldn’t tell which city that booking is in. Search for the city instead.'); return; }
+    let hit: PlaceHit | undefined;
+    try { hit = (await searchPlaces(q))[0]; } catch { /* offline */ }
+    if (!hit) { fail(`Couldn’t find “${q}” on the map. Search for the city instead.`); return; }
+    const out = stopFromBooking(res.result, hit);
+    if ('error' in out) { fail(out.error); return; }
+    setStop(stopId, { place: out.place, arrive: out.arrive, depart: out.depart, stay: out.stay });
+    setFill(f => ({ ...f, [stopId]: { kind: 'done', title: out.stay.title } }));
+  }
 
   const seq = [null, ...stops.map(s => s.id), null];
   const legKeys = seq.slice(1).map((to, i) => `${seq[i]}>${to}`);
@@ -96,12 +127,16 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
     const legIds = new Set(legs.map(l => l.id));
     const trip: Trip = {
       id: initial?.id ?? newId('trip'),
-      token: initial?.token ?? newToken(),
+      token,
       name: name.trim(), home: home!, baseCurrency: base,
       adminId: initial?.adminId ?? people[0].id,
       travelers: people, stops: tStops, legs,
       // Bookings on removed stops or legs go with them.
-      reservations: (initial?.reservations ?? []).filter(r => (r.stopId ? stopIds.has(r.stopId) : r.legId ? legIds.has(r.legId) : false)),
+      reservations: [
+        ...(initial?.reservations ?? []).filter(r => (r.stopId ? stopIds.has(r.stopId) : r.legId ? legIds.has(r.legId) : false)),
+        // Stays the stops were filled from.
+        ...stops.filter(s => s.stay).map((s): Reservation => ({ ...s.stay!, id: newId('r'), stopId: s.id })),
+      ],
       expenses: initial?.expenses ?? [],
       isDemo: initial?.isDemo ?? false,
     };
@@ -121,7 +156,8 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
       footer={<button className="btn-primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : initial ? 'Save trip' : 'Create trip'}</button>}>
       <div className="field" style={{ marginTop: 6 }}>
         <label className="label" htmlFor="trip-name">Trip name</label>
-        <input id="trip-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Austria–Croatia" />
+        <input id="trip-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Give your trip a name"
+          autoComplete="off" autoCorrect="off" name="passage-trip-name" />
         {tried && errors.name && <div className="help warn">{errors.name}</div>}
       </div>
 
@@ -130,8 +166,9 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
         <div style={{ display: 'grid', gap: 10 }}>
           {travelers.map((t, i) => (
             <div key={t.id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <span className="avatar" style={{ background: t.color, margin: 0, border: 0 }}>{t.name[0]?.toUpperCase() ?? '?'}</span>
+              <span className="avatar" style={{ background: t.color, margin: 0, border: 0 }} aria-hidden="true">{t.name.trim()[0]?.toUpperCase() ?? ''}</span>
               <input className="input" value={t.name} placeholder={i === 0 ? 'Your name' : 'Name'} aria-label={i === 0 ? 'Your name' : `Traveler ${i + 1}`}
+                autoComplete="off" autoCorrect="off" name={`passage-traveler-${i}`}
                 onChange={e => setTravelers(ts => ts.map(x => (x.id === t.id ? { ...x, name: e.target.value } : x)))} />
               {i > 0 && (!initial || !initial.expenses.some(e => e.payerId === t.id || e.splitWith.includes(t.id))) && (
                 <button className="close-btn" aria-label={`Remove ${t.name || 'traveler'}`} onClick={() => setTravelers(ts => ts.filter(x => x.id !== t.id))}><Icon name="close" /></button>
@@ -145,7 +182,6 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
             <Icon name="person_add" />Add traveler
           </button>
         )}
-        {!initial && <div className="help">You’re the trip admin. Everyone else joins from the share link.</div>}
       </div>
 
       <div className="field">
@@ -175,6 +211,16 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
               <div style={{ marginTop: 10 }}>
                 <PlaceSearch value={s.place} placeholder="Search a city" label={`Stop ${i + 1} city`} onPick={p => setStop(s.id, { place: { name: p.name, country: p.country, lat: p.lat, lng: p.lng, tz: p.tz } })} />
               </div>
+              {fill[s.id]?.kind === 'done' ? (
+                <div className="scan-note ok"><Icon name="check_circle" fill /><span>Filled from your booking at {(fill[s.id] as { title: string }).title}. It’s added as a booked stay. Check the dates.</span></div>
+              ) : (
+                <button className={`fill-stop ${fill[s.id]?.kind === 'busy' ? 'busy' : ''}`} disabled={fill[s.id]?.kind === 'busy'}
+                  onClick={() => { fillFor.current = s.id; fileRef.current?.click(); }}>
+                  <Icon name={fill[s.id]?.kind === 'busy' ? 'progress_activity' : 'document_scanner'} />
+                  <span>{fill[s.id]?.kind === 'busy' ? 'Reading your booking…' : 'Fill from a hotel booking'}<small>A screenshot or PDF. Fills the city and dates.</small></span>
+                </button>
+              )}
+              {fill[s.id]?.kind === 'error' && <div className="scan-note bad"><Icon name="error" fill /><span>{(fill[s.id] as { message: string }).message}</span></div>}
               <div className="row2" style={{ marginTop: 10 }}>
                 <label className="dt"><span className="k">Arrive</span><input type="date" value={s.arrive} onChange={e => setStop(s.id, { arrive: e.target.value, depart: s.depart < e.target.value ? e.target.value : s.depart })} /></label>
                 <label className="dt"><span className="k">Leave</span><input type="date" value={s.depart} min={s.arrive} onChange={e => setStop(s.id, { depart: e.target.value })} /></label>
@@ -197,7 +243,7 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
       </div>
 
       <div className="field">
-        <label className="label" htmlFor="trip-cur">Balances in</label>
+        <label className="label" htmlFor="trip-cur">Currency</label>
         <div className="select-wrap">
           <select id="trip-cur" className="select" value={base} onChange={e => setBase(e.target.value as Currency)}>
             {CURRENCIES.map(c => <option key={c}>{c}</option>)}
@@ -205,6 +251,11 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
           <Icon name="unfold_more" />
         </div>
       </div>
+      <input ref={fileRef} type="file" accept="image/*,application/pdf" hidden onChange={e => {
+        const f = e.target.files?.[0];
+        e.target.value = '';
+        if (f && fillFor.current) void fillStop(fillFor.current, f);
+      }} />
       {saveErr && <div className="scan-note bad" style={{ marginTop: 16 }}><Icon name="error" fill /><span>Couldn’t save: {saveErr}</span></div>}
     </Sheet>
   );
