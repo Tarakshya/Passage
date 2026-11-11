@@ -118,6 +118,13 @@ approves it. Titles and splits can be fixed by anyone.
 
 ## 5. Sharing without accounts
 
+Live since Nov 2026 on Supabase (free plan, project `passage`). Set up through the Supabase
+connector: `supabase/schema.sql` applied as a migration; Vercel holds the project URL and the
+publishable key. A trip made on a phone before sharing was switched on is uploaded the first time
+it is opened (`SupabaseStore.load`). Free projects pause after about a week with no activity;
+opening the app or the dashboard wakes them, with no data lost.
+
+
 A trip's 128-bit random token is its only key. In Postgres, row-level security is on with **no
 policies**, so the public key can't touch tables. All access goes through `security definer`
 functions that take the token (`get_trip`, `apply_mutation`, `create_trip`, `take_scan`).

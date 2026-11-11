@@ -125,7 +125,7 @@ export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, not
 
       <div className="field">
         <label className="label" htmlFor="exp-title">What for</label>
-        <input id="exp-title" className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Dinner · Naschmarkt" autoComplete="off" />
+        <input id="exp-title" className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="What was it? e.g. Dinner, taxi, museum tickets" autoComplete="off" />
         {tried && errors.title && <div className="help warn">{errors.title}</div>}
       </div>
 
