@@ -55,40 +55,78 @@ function TripCard({ s, now, temp }: { s: TripSummary; now: Date; temp: number | 
   );
 }
 
-export function Trips() {
+const NO_SAMPLE = 'passage:nosample';
+
+/**
+ * `clean` is the /start link: no sample trip, just "plan your first trip". Opening /start once
+ * remembers that on the phone, so "‹ Trips" from inside a trip stays clean too; the home screen
+ * offers a link to bring the sample trip back.
+ */
+export function Trips({ clean = false }: { clean?: boolean }) {
   const router = useRouter();
   const now = useNow();
   const [list, setList] = useState<TripSummary[] | null>(null);
   const [creating, setCreating] = useState(false);
+  const [hideSample, setHideSample] = useState(clean);
 
   useEffect(() => {
-    // The demo is always listed, rebuilt for today so it is always mid-trip.
-    const demo = tripSummary(buildDemoTrip(new Date()));
+    let hide = clean;
+    try {
+      if (clean) localStorage.setItem(NO_SAMPLE, '1');
+      else hide = localStorage.getItem(NO_SAMPLE) === '1';
+    } catch { /* ignore */ }
+    setHideSample(hide);
+    // The sample is rebuilt for today so it is always mid-trip.
     const mine = knownTrips().filter(t => t.token !== DEMO_TOKEN);
-    setList([...mine, demo]);
-  }, []);
+    setList(hide ? mine : [...mine, tripSummary(buildDemoTrip(new Date()))]);
+  }, [clean]);
+
+  const showSample = () => {
+    try { localStorage.removeItem(NO_SAMPLE); } catch { /* ignore */ }
+    setHideSample(false);
+    setList(l => [...(l ?? []).filter(t => !t.isDemo), tripSummary(buildDemoTrip(new Date()))]);
+    if (clean) router.replace('/');
+  };
 
   const sorted = list ? sortTrips(list.filter(t => !t.isDemo), now) : [];
-  const demo = list?.find(t => t.isDemo);
+  const demo = hideSample ? undefined : list?.find(t => t.isDemo);
   const live = sorted.find(t => summaryStatus(t, now).phase === 'now') ?? (demo && !sorted.length ? demo : undefined);
   const city = live ? summaryStatus(live, now).city : null;
   const temp = useTemp(city);
+  const empty = list !== null && !sorted.length && !demo;
 
   return (
     <main className="app">
       <div className="screen home">
         <div className="wordmark">Passage</div>
         <h1 className="screen-title">{timeOfDay(now)}.</h1>
-        <p className="screen-sub">{sorted.length ? 'Your trips' : 'Here’s a sample trip to explore, or plan your own.'}</p>
+        <p className="screen-sub">
+          {sorted.length ? 'Your trips' : empty ? 'Plan a trip and everything about it lives in one place.' : 'Here’s a sample trip to explore, or plan your own.'}
+        </p>
 
         {!list && <div className="skeleton" style={{ height: 150, marginTop: 22 }} />}
-        <div className="trip-list">
-          {sorted.map(t => <TripCard key={t.token} s={t} now={now} temp={t === live ? temp : null} />)}
-          {demo && sorted.length > 0 && <div className="lbl" style={{ margin: '10px 2px -4px' }}><span>Sample trip</span></div>}
-          {demo && <TripCard s={demo} now={now} temp={demo === live ? temp : null} />}
-        </div>
-
-        <button className="add-row" onClick={() => setCreating(true)}><Icon name="add" />Plan a new trip</button>
+        {empty ? (
+          <div className="first-trip">
+            <ul>
+              <li>Your route, city by city, with what’s still to book</li>
+              <li>Add a booking from a screenshot, read by Claude</li>
+              <li>Live “leave by” times on the day</li>
+              <li>Things picked for you in every city</li>
+              <li>Who paid what, settled up</li>
+            </ul>
+            <button className="btn-primary" onClick={() => setCreating(true)}>Plan your first trip</button>
+          </div>
+        ) : (
+          <>
+            <div className="trip-list">
+              {sorted.map(t => <TripCard key={t.token} s={t} now={now} temp={t === live ? temp : null} />)}
+              {demo && sorted.length > 0 && <div className="lbl" style={{ margin: '10px 2px -4px' }}><span>Sample trip</span></div>}
+              {demo && <TripCard s={demo} now={now} temp={demo === live ? temp : null} />}
+            </div>
+            <button className="add-row" onClick={() => setCreating(true)}><Icon name="add" />Plan a new trip</button>
+          </>
+        )}
+        {hideSample && list !== null && <button className="quiet-link" onClick={showSample}>See a sample trip</button>}
       </div>
       {creating && <TripForm initial={null} onSave={t => createTrip(t, href => router.push(href))} onClose={() => setCreating(false)} />}
     </main>
