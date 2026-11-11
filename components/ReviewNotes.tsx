@@ -46,6 +46,7 @@ export function ReviewNotes() {
   const [where, setWhere] = useState('');
   const [flash, setFlash] = useState('');
   const [sure, setSure] = useState(false);
+  const [editing, setEditing] = useState<number | null>(null); // index of the note being edited, or null for a new one
   const lastTap = useRef('');
   const copyBox = useRef<HTMLTextAreaElement>(null);
 
@@ -66,15 +67,24 @@ export function ReviewNotes() {
 
   if (!on) return null;
 
-  const open = () => { setWhere(whereAmI(lastTap.current)); setText(''); setMode('write'); };
+  const open = () => { setEditing(null); setWhere(whereAmI(lastTap.current)); setText(''); setMode('write'); };
+  const edit = (i: number) => { setEditing(i); setWhere(notes[i].where); setText(notes[i].text); setSure(false); setMode('write'); };
   const save = () => {
     const v = text.trim();
     if (!v) return;
+    if (editing !== null) {
+      // Editing keeps the note's place and where it was made; only the words change.
+      const next = notes.map((n, j) => (j === editing ? { ...n, text: v } : n));
+      setNotes(next); store(next); setEditing(null); setMode('list'); setFlash(`Note ${editing + 1} updated`);
+      return;
+    }
     const next = [...notes, { at: new Date().toISOString(), where, text: v }];
     setNotes(next); store(next); setMode('closed'); setFlash(`Note ${next.length} saved`);
   };
+  const cancelWrite = () => { setMode(editing !== null ? 'list' : 'closed'); setEditing(null); };
   const remove = (i: number) => { const next = notes.filter((_, j) => j !== i); setNotes(next); store(next); };
   const clearAll = () => {
+    setEditing(null);
     if (!sure) { setSure(true); return; }
     setNotes([]); store([]); setSure(false); setMode('closed'); setFlash('Notes cleared');
   };
@@ -98,17 +108,17 @@ export function ReviewNotes() {
       )}
 
       {mode !== 'closed' && (
-        <div className="rn-backdrop" onClick={() => setMode('closed')}>
-          <div className="rn-panel" role="dialog" aria-label={mode === 'write' ? 'New review note' : 'Your review notes'} onClick={e => e.stopPropagation()}>
+        <div className="rn-backdrop" onClick={() => { setMode('closed'); setEditing(null); }}>
+          <div className="rn-panel" role="dialog" aria-label={mode === 'write' ? (editing !== null ? 'Edit review note' : 'New review note') : 'Your review notes'} onClick={e => e.stopPropagation()}>
             {mode === 'write' ? (
               <>
-                <div className="rn-head"><b>New note</b><button onClick={() => setMode('closed')} aria-label="Close">Cancel</button></div>
+                <div className="rn-head"><b>{editing !== null ? `Edit note ${editing + 1}` : 'New note'}</b><button onClick={cancelWrite}>Cancel</button></div>
                 <div className="rn-where">{where}</div>
                 <textarea id="rn-text" className="input" autoFocus rows={4} value={text} onChange={e => setText(e.target.value)}
                   placeholder="What’s wrong, or what would you change? Tap the mic on your keyboard to dictate." />
                 <div className="rn-actions">
-                  {notes.length > 0 && <button className="btn-line" onClick={() => setMode('list')}>All notes ({notes.length})</button>}
-                  <button className="btn-primary" onClick={save} disabled={!text.trim()}>Save note</button>
+                  {editing === null && notes.length > 0 && <button className="btn-line" onClick={() => setMode('list')}>All notes ({notes.length})</button>}
+                  <button className="btn-primary" onClick={save} disabled={!text.trim()}>{editing !== null ? 'Save changes' : 'Save note'}</button>
                 </div>
               </>
             ) : (
@@ -118,8 +128,11 @@ export function ReviewNotes() {
                   {notes.map((n, i) => (
                     <li key={n.at}>
                       <div className="rn-where">{n.where}</div>
-                      <div className="rn-text">{n.text}</div>
-                      <button className="rn-del" onClick={() => remove(i)} aria-label={`Delete note ${i + 1}`}><Icon name="delete" /></button>
+                      <button className="rn-text" onClick={() => edit(i)} aria-label={`Edit note ${i + 1}: ${n.text}`}>{n.text}</button>
+                      <div className="rn-tools">
+                        <button onClick={() => edit(i)} aria-label={`Edit note ${i + 1}`}><Icon name="edit" /></button>
+                        <button onClick={() => remove(i)} aria-label={`Delete note ${i + 1}`}><Icon name="delete" /></button>
+                      </div>
                     </li>
                   ))}
                 </ol>
