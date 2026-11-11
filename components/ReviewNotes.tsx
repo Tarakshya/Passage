@@ -31,7 +31,7 @@ const label = (el: Element | null): string => {
 function whereAmI(lastTap: string): string {
   const path = window.location.pathname;
   const page = path === '/' ? 'Trips home' : path === '/start' ? 'Clean start' : path.startsWith('/t/')
-    ? `Trip “${document.body.dataset.trip || path}”${document.querySelector('.tab.on')?.textContent === 'Split' ? ' · Split tab' : ''}`
+    ? `Trip “${document.body.dataset.trip || path}”${document.querySelector('.tab.on')?.textContent === 'Ledger' ? ' · Ledger tab' : ''}`
     : path;
   const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(d => !d.closest('.rn'));
   const panel = dialogs.length ? label(dialogs[dialogs.length - 1]) : '';

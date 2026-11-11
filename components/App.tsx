@@ -177,7 +177,7 @@ export function App({ token }: { token: string }) {
             onClick={() => (tab === 'trip' ? openRes(null, { stopId: current?.id }) : setSheet({ kind: 'exp', initial: null }))}>
             <Icon name="add" />
           </button>
-          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}>Split</button>
+          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}>Ledger</button>
         </nav>
 
         {stopForSheet && (
