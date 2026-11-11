@@ -482,6 +482,7 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .first-trip .tips li { counter-increment: tip; position: relative; padding-left: 30px; font-size: 14.5px; color: var(--soft); line-height: 1.45; }
 .first-trip .tips li::before { content: counter(tip); position: absolute; left: 0; top: -2px; font-family: var(--serif); font-size: 20px; color: var(--gold); }
 .first-trip .tips b { font-weight: 500; color: var(--cream); }
+.first-trip .tips .late { color: var(--alert); } /* the same red the Next up card turns when you're running late */
 .quiet-link { display: block; margin: 22px auto 0; min-height: 44px; padding: 0 12px; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--slate); }
 
 /* Review notes — only on T's private review link (components/ReviewNotes.tsx) */

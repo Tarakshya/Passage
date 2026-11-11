@@ -109,10 +109,10 @@ export function Trips({ clean = false }: { clean?: boolean }) {
           <div className="first-trip">
             <h2 className="how">How it works</h2>
             <ol className="tips">
-              <li><b>Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s still to book.</li>
-              <li><b>Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Claude fills in the details; you check and save.</li>
-              <li><b>Tap a city</b> to see everything booked there, plus places picked for your interests.</li>
-              <li><b>Watch “Next up” on the day.</b> It counts down to when you need to leave, and warns you if you’re running late.</li>
+              <li><b>Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
+              <li><b>Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
+              <li><b>Tap a city</b> to see everything booked there, plus places curated for your interests.</li>
+              <li><b>Watch <span className="late">Next up</span> on the day.</b> It counts down to when you need to leave and warns you if you’re running late.</li>
               <li><b>Log what you pay in Split.</b> Scan a receipt; Passage works out who owes whom.</li>
               <li><b>Add it to your home screen</b> from your browser’s Share menu. It opens like an app and works offline.</li>
             </ol>
