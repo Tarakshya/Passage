@@ -2,7 +2,7 @@
 
 import type { LiveStatus } from './live-status';
 import { daysBetween, instantToZoned, todayIn, zonedToInstant } from './time';
-import { currentStop, sortedStops, tripCountdown, tripDates } from './trip';
+import { bookingProgress, currentStop, sortedStops, tripCountdown, tripDates } from './trip';
 import type { Reservation, Trip } from './types';
 
 const CODES: Record<string, string> = {
@@ -93,4 +93,69 @@ export function ticketRange(a: string, b: string): string {
 
 export function countryName(code: string): string {
   try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) ?? code; } catch { return code; }
+}
+
+// ---------- The trips list ----------
+
+/** What the trips list needs about a trip; saved on the phone each time a trip is opened. */
+export interface TripSummary {
+  token: string;
+  name: string;
+  home: string;
+  stops: { name: string; arrive: string; depart: string; tz: string; lat: number; lng: number }[];
+  crew: string[];
+  booked: number;
+  total: number;
+  isDemo?: boolean;
+}
+
+export function tripSummary(trip: Trip): TripSummary {
+  const p = bookingProgress(trip);
+  return {
+    token: trip.token,
+    name: trip.name,
+    home: trip.home.name,
+    stops: sortedStops(trip).map(s => ({ name: s.name, arrive: s.arrive, depart: s.depart, tz: s.tz, lat: s.lat, lng: s.lng })),
+    crew: trip.travelers.map(t => t.name),
+    booked: p.booked,
+    total: p.total,
+    isDemo: trip.isDemo || undefined,
+  };
+}
+
+export type TripPhase = 'now' | 'soon' | 'past' | 'undated';
+
+/** Where a trip stands today, in words: "Day 1 of 14 · Vienna", "In 21 days", "Ended". */
+export function summaryStatus(s: Pick<TripSummary, 'stops'>, now: Date): { phase: TripPhase; text: string; city: TripSummary['stops'][number] | null } {
+  if (!s.stops.length) return { phase: 'undated', text: 'No dates yet', city: null };
+  const first = s.stops[0];
+  const last = s.stops.at(-1)!;
+  const today = todayIn(first.tz, now);
+  if (today < first.arrive) {
+    const n = daysBetween(today, first.arrive);
+    return { phase: 'soon', text: n === 1 ? 'Tomorrow' : `In ${n} days`, city: null };
+  }
+  const total = daysBetween(first.arrive, last.depart) + 1;
+  const day = daysBetween(first.arrive, today) + 1;
+  if (day > total) return { phase: 'past', text: 'Ended', city: null };
+  const city = s.stops.find(x => x.arrive <= todayIn(x.tz, now) && todayIn(x.tz, now) < x.depart) ?? last;
+  return { phase: 'now', text: `Day ${day} of ${total}`, city };
+}
+
+/** In progress first, then upcoming (soonest first), then undated, then past (latest first). */
+export function sortTrips<T extends Pick<TripSummary, 'stops'>>(list: T[], now: Date): T[] {
+  const rank: Record<TripPhase, number> = { now: 0, soon: 1, undated: 2, past: 3 };
+  return [...list].sort((a, b) => {
+    const pa = summaryStatus(a, now).phase;
+    const pb = summaryStatus(b, now).phase;
+    if (pa !== pb) return rank[pa] - rank[pb];
+    const sa = a.stops[0]?.arrive ?? '';
+    const sb = b.stops[0]?.arrive ?? '';
+    return pa === 'past' ? sb.localeCompare(sa) : sa.localeCompare(sb);
+  });
+}
+
+export function timeOfDay(now: Date): string {
+  const h = now.getHours();
+  return h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }

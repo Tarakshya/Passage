@@ -1,15 +1,6 @@
-'use client';
+import { Trips } from '@/components/Trips';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-/** Opens the last trip used on this phone, or the demo. */
+/** Home: every trip this phone knows about, plus the sample trip. Tap one to open it. */
 export default function Home() {
-  const router = useRouter();
-  useEffect(() => {
-    let last = 'demo';
-    try { last = localStorage.getItem('passage:last') ?? 'demo'; } catch { /* ignore */ }
-    router.replace(`/t/${last}`);
-  }, [router]);
-  return <main className="app" />;
+  return <Trips />;
 }

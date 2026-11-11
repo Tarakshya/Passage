@@ -1,14 +1,13 @@
 'use client';
 
-import type { Greeting as GreetingText } from '@/lib/home';
-import { routeCodes, shortCountdown, ticketRange } from '@/lib/home';
+import { shortCountdown, ticketRange } from '@/lib/home';
 import { klookForLeg, withAid } from '@/lib/klook';
 import type { LiveStatus } from '@/lib/live-status';
 import { instantToZoned, fmtTime, fmtDuration } from '@/lib/time';
-import { bookingProgress, legLabel, mapStop, sortedStops, timeline, tripDates, type TimelineItem } from '@/lib/trip';
+import { bookingProgress, currentStop, legLabel, mapStop, placeName, timeline, tripCountdown, tripDates, type TimelineItem } from '@/lib/trip';
 import type { Leg, Reservation, Stop, Trip } from '@/lib/types';
 import { MapView } from './MapView';
-import { Icon, TYPE_LABEL } from './ui';
+import { Icon, TYPE_ICON, TYPE_LABEL } from './ui';
 
 export type LiveFn = (r: Reservation) => LiveStatus | null;
 
@@ -42,15 +41,6 @@ export function LiveLine({ s, r, onRebook }: { s: LiveStatus; r: Reservation; on
   );
 }
 
-export function Greeting({ g, name, temp }: { g: GreetingText; name: string; temp: number | null }) {
-  return (
-    <header className="hello">
-      <h1>{g.hello}, {name}.<br />{g.before}{g.em && <em>{g.em}</em>}{g.after}</h1>
-      <p className="dateline">{g.dateLine}{temp !== null && ` · ${temp}°C`}</p>
-    </header>
-  );
-}
-
 const NEXT_LABEL = { 'on-track': 'Next up', 'leave-soon': 'Leave soon', 'at-risk': 'At risk', missed: 'Missed' } as const;
 
 /** The one thing to act on next: what, when, and how long until you have to leave. */
@@ -58,61 +48,57 @@ export function NextUp({ r, s, onOpen }: { r: Reservation; s: LiveStatus; onOpen
   const [head, ...rest] = r.title.split(' · ');
   const sub = [...rest, isRide(r) ? r.service : null, r.seat].filter(Boolean).join(' · ');
   const big = s.state === 'at-risk' ? 'Now' : s.state === 'missed' ? '—' : shortCountdown(s.minutesToLeave);
-  const small = s.state === 'at-risk' ? 'YOU MAY MISS IT' : s.state === 'missed' ? 'REBOOK?' : `LEAVE BY ${leaveBy(s, r)}`;
+  const small = s.state === 'at-risk' ? 'You may miss it' : s.state === 'missed' ? 'Rebook?' : `Leave by ${leaveBy(s, r)}`;
   // The bar fills over the three hours before you have to leave.
   const pct = s.state === 'missed' || s.state === 'at-risk' ? 100 : Math.max(4, Math.min(100, 100 - (s.minutesToLeave / 180) * 100));
   const spoken = s.state === 'at-risk' ? 'leave now, you may miss it' : s.state === 'missed' ? 'missed' : `leave by ${leaveBy(s, r)}, in ${fmtDuration(s.minutesToLeave)}`;
   return (
     <button className={`next ${s.state}`} onClick={onOpen} aria-label={`${NEXT_LABEL[s.state]}: ${r.title} at ${fmtTime(r.startLocal)} — ${spoken}`}>
-      <div className="k">{NEXT_LABEL[s.state].toUpperCase()} · {fmtTime(r.startLocal)}</div>
+      <div className="k">{NEXT_LABEL[s.state]} · {fmtTime(r.startLocal)}</div>
       <div className="t">{head}</div>
       {sub && <div className="s">{sub}</div>}
       <div className="cd" role={s.state === 'at-risk' ? 'alert' : 'status'}><b>{big}</b><small>{small}</small></div>
       <div className="bar"><i style={{ width: `${pct}%` }} /></div>
-      {s.state !== 'missed' && <div className="est">{away(s)}</div>}
     </button>
   );
 }
 
 /** The trip as a paper ticket: route, dates, crew, and a tear-off stub with booking progress. */
-export function Ticket({ trip, now }: { trip: Trip; now: Date }) {
+export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Date; expanded: boolean; onToggle: () => void }) {
   const dates = tripDates(trip);
   const prog = bookingProgress(trip);
-  const { codes, at } = routeCodes(trip, now);
   const city = mapStop(trip, now);
+  const current = currentStop(trip, now);
   const left = prog.total - prog.booked;
   return (
     <section className="ticket" aria-label={`${trip.name} trip`}>
       <div className="main">
         {city && <div className="tk-map"><MapView center={{ lat: city.lat, lng: city.lng }} zoom={12} tint={false} /></div>}
-        <div className="codes" aria-label={`Route: ${[trip.home.name, ...sortedStops(trip).map(s => s.name)].join(', ')}`}>
-          {codes.map((c, i) => (
-            <span key={i} aria-hidden="true">
-              <span className={i === at ? 'at' : i < at ? 'done' : ''}>{c}</span>{i < codes.length - 1 && ' →'}
-            </span>
-          ))}
-        </div>
+        <div className="tk-status">{tripCountdown(trip, now)}{city && current ? ` · ${city.name}` : ''}</div>
         <h2>{trip.name}</h2>
         <div className="meta">
-          {dates && <div>DATES<b>{ticketRange(dates.start, dates.end)}</b></div>}
-          {dates && <div>NIGHTS<b>{dates.nights}</b></div>}
-          <div>CREW<b>{trip.travelers.length <= 4 ? trip.travelers.map(t => t.name.slice(0, 1).toUpperCase()).join(' · ') : trip.travelers.length}</b></div>
+          {dates && <div>Dates<b>{ticketRange(dates.start, dates.end)}</b></div>}
+          {dates && <div>Nights<b>{dates.nights}</b></div>}
+          <div>Crew<b>{trip.travelers.length <= 4 ? trip.travelers.map(t => t.name.slice(0, 1).toUpperCase()).join(' · ') : trip.travelers.length}</b></div>
         </div>
       </div>
       <div className="stub" aria-label={`${prog.booked} of ${prog.total} booked`}>
-        <small>BOOKED</small>
+        <small>Booked</small>
         <div className="big">{prog.booked}/{prog.total}</div>
-        <div className="togo">{left > 0 ? `${left} TO GO` : 'ALL SET'}</div>
+        <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
+        <button className="fold" onClick={onToggle} aria-expanded={expanded} aria-label={expanded ? 'Collapse itinerary' : 'Expand itinerary'}>
+          <Icon name={expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'} />
+        </button>
       </div>
     </section>
   );
 }
 
 function bookingText(b: Reservation) {
-  return <>{TYPE_LABEL[b.type]} · <b>{fmtTime(b.startLocal)}</b> · {b.service ?? b.route ?? b.title}</>;
+  return <><Icon name={TYPE_ICON[b.type]} /> <b>{fmtTime(b.startLocal)}</b> {b.service ?? b.route ?? b.title}</>;
 }
 
-function LegLines({ trip, leg, bookings, live, h }: { trip: Trip; leg: Leg; bookings: Reservation[]; live: LiveFn; h: ItineraryHandlers }) {
+function LegLines({ trip, leg, bookings, live, h, skip }: { trip: Trip; leg: Leg; bookings: Reservation[]; live: LiveFn; h: ItineraryHandlers; skip?: string }) {
   const real = bookings.filter(b => b.status !== 'todo');
   if (!real.length) {
     const klook = klookForLeg(trip, leg);
@@ -120,8 +106,8 @@ function LegLines({ trip, leg, bookings, live, h }: { trip: Trip; leg: Leg; book
       <div className="legline todo">
         <span className="dash" />
         <button className="tx" onClick={() => h.addToLeg(leg)} aria-label={`Add the ${TYPE_LABEL[leg.mode].toLowerCase()} for ${legLabel(trip, leg)}`}>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{TYPE_LABEL[leg.mode]} · {legLabel(trip, leg)}</span>
-          <span className="st todo">To book +</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name={TYPE_ICON[leg.mode]} /> {TYPE_LABEL[leg.mode]} to {placeName(trip, leg.to)}</span>
+          <span className="st todo">To book</span>
         </button>
         {klook && <a className="kpill" href={withAid(klook)} target="_blank" rel="noopener noreferrer">Klook <Icon name="arrow_outward" /></a>}
       </div>
@@ -130,12 +116,12 @@ function LegLines({ trip, leg, bookings, live, h }: { trip: Trip; leg: Leg; book
   return (
     <>
       {real.map(b => {
-        const s = live(b);
+        const s = b.id === skip ? null : live(b);
         return (
           <button key={b.id} className={`legline ${s?.state ?? ''}`} onClick={() => h.openReservation(b)}>
             <span className="dash" />
             <span className="tx">{bookingText(b)}</span>
-            <span className={`st ${b.status === 'booked' ? '' : 'pend'}`}>{b.status === 'booked' ? 'Booked' : 'Pending'}</span>
+            <span className={`st ${b.status === 'booked' ? '' : 'pend'}`}>{b.status === 'booked' ? <><Icon name="check" />Booked</> : 'Pending'}</span>
             {s && <LiveLine s={s} r={b} onRebook={() => h.openReservation(b)} />}
           </button>
         );
@@ -144,13 +130,14 @@ function LegLines({ trip, leg, bookings, live, h }: { trip: Trip; leg: Leg; book
   );
 }
 
-function StopStub({ stop, stays, others, here, live, h }: {
-  stop: Stop; stays: Reservation[]; others: Reservation[]; here: boolean; live: LiveFn; h: ItineraryHandlers;
+function StopStub({ stop, stays, others, here, live, h, skip }: {
+  stop: Stop; stays: Reservation[]; others: Reservation[]; here: boolean; live: LiveFn; h: ItineraryHandlers; skip?: string;
 }) {
   const booked = stays.filter(s => s.status === 'booked');
   const pending = stays.filter(s => s.status === 'pending');
   const empty = !booked.length && !pending.length;
   const stay = booked[0] ?? pending[0];
+  // Today's live plans sit under their city; the one already shown as "Next up" says it once.
   const liveOnes = others.map(o => ({ o, s: live(o) })).filter((x): x is { o: Reservation; s: LiveStatus } => x.s !== null);
   const plans = others.length;
   const open = () => h.openStop(stop);
@@ -175,11 +162,10 @@ function StopStub({ stop, stays, others, here, live, h }: {
           </small>
         </div>
         <div className="right">
-          {booked.length > 0 && <span className="stamp">Booked</span>}
+          {booked.length > 0 && <span className="stamp"><Icon name="check" />Booked</span>}
           {!booked.length && pending.length > 0 && <span className="stamp pend">Pending</span>}
           {empty && (
             <>
-              <button className="snap" aria-label={`Upload a confirmation for ${stop.name}`} onClick={e => { e.stopPropagation(); h.addToStop(stop, { scan: true, type: 'hotel' }); }}><Icon name="photo_camera" /></button>
               <button className="stamp todo" aria-label={`Add a stay in ${stop.name}`} onClick={e => { e.stopPropagation(); h.addToStop(stop, { type: 'hotel' }); }}>To book</button>
             </>
           )}
@@ -188,25 +174,23 @@ function StopStub({ stop, stays, others, here, live, h }: {
       {liveOnes.map(({ o, s }) => (
         <button key={o.id} className={`legline plan ${s.state}`} onClick={() => h.openReservation(o)}>
           <span className="dash" />
-          <span className="tx">{TYPE_LABEL[o.type]} · <b>{fmtTime(o.startLocal)}</b> · {o.title}</span>
-          <span className={`st ${o.status === 'booked' ? '' : 'pend'}`}>{o.status === 'booked' ? 'Booked' : 'Pending'}</span>
-          <LiveLine s={s} r={o} onRebook={() => h.openReservation(o)} />
+          <span className="tx"><Icon name={TYPE_ICON[o.type]} /> <b>{fmtTime(o.startLocal)}</b> {o.title.split(' · ')[0]}</span>
+          <span className={`st ${o.status === 'booked' ? '' : 'pend'}`}>{o.status === 'booked' ? <><Icon name="check" />Booked</> : 'Pending'}</span>
+          {o.id !== skip && <LiveLine s={s} r={o} onRebook={() => h.openReservation(o)} />}
         </button>
       ))}
     </div>
   );
 }
 
-export function Timeline({ trip, current, live, h }: { trip: Trip; current: Stop | undefined; live: LiveFn; h: ItineraryHandlers }) {
+export function Timeline({ trip, current, live, h, skip }: { trip: Trip; current: Stop | undefined; live: LiveFn; h: ItineraryHandlers; skip?: string }) {
   const items: TimelineItem[] = timeline(trip);
   return (
     <div>
       {items.map((it, i) => {
-        if (it.kind === 'home') {
-          return <div className="legline home" key={`home-${it.end}`}><span className="dash" />{it.place.name} · {it.end === 'start' ? 'Home' : 'Back home'}</div>;
-        }
-        if (it.kind === 'leg') return <LegLines key={it.leg.id} trip={trip} leg={it.leg} bookings={it.bookings} live={live} h={h} />;
-        return <StopStub key={it.stop.id + i} stop={it.stop} stays={it.stays} others={it.others} here={current?.id === it.stop.id} live={live} h={h} />;
+        if (it.kind === 'home') return null;
+        if (it.kind === 'leg') return <LegLines key={it.leg.id} trip={trip} leg={it.leg} bookings={it.bookings} live={live} h={h} skip={skip} />;
+        return <StopStub key={it.stop.id + i} stop={it.stop} stays={it.stays} others={it.others} here={current?.id === it.stop.id} live={live} h={h} skip={skip} />;
       })}
       <a className="osm-note" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">City maps © OpenStreetMap contributors</a>
     </div>

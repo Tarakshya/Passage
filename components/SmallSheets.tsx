@@ -21,6 +21,30 @@ export function WhoAreYou({ trip, onPick, onClose }: { trip: Trip; onPick: (id: 
   );
 }
 
+type MenuKey = 'share' | 'trip' | 'profile' | 'demo';
+
+/** Everything that used to crowd the trip screen, one tap away. */
+export function TripMenu({ onPick, onClose, liveTimes, isDemo }: {
+  onPick: (k: MenuKey) => void; onClose: () => void; liveTimes?: () => void; isDemo: boolean;
+}) {
+  const row = (icon: string, label: string, sub: string, run: () => void) => (
+    <button className="menu-row" onClick={run}>
+      <Icon name={icon} /><span><b>{label}</b><small>{sub}</small></span><Icon name="chevron_right" />
+    </button>
+  );
+  return (
+    <Sheet label="Trip options" title="This trip" onClose={onClose}>
+      <div className="menu">
+        {row('ios_share', 'Share', 'Send the link to your group', () => onPick('share'))}
+        {row('edit', 'Edit trip', 'Stops, dates and travelers', () => onPick('trip'))}
+        {row('favorite', 'Your interests', 'What your picks are based on', () => onPick('profile'))}
+        {liveTimes && row('near_me', 'Live leave-by times', 'Uses your location while the app is open', liveTimes)}
+        {isDemo && row('tune', 'Demo controls', 'Move the clock, switch traveler', () => onPick('demo'))}
+      </div>
+    </Sheet>
+  );
+}
+
 export function ShareSheet({ trip, shared, onClose, onEdit }: { trip: Trip; shared: boolean; onClose: () => void; onEdit: () => void }) {
   const url = typeof window !== 'undefined' ? `${window.location.origin}/t/${trip.token}` : '';
   const [copied, setCopied] = useState(false);

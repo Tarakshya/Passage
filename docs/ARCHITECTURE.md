@@ -160,20 +160,26 @@ without losing it. The same reducer replays the outbox over the last cached copy
 - **The demo** runs entirely on the device, always mid-trip (dates are relative to now), and
   re-seeds after 6 hours. Reviewers can't change it for each other.
 
-## 7. The look: "Boarding Pass"
+## 7. The look: "Boarding Pass", concierge edition
 
-A night-navy app where the trip is a cream paper ticket with a tear-off stub, and one bright
-lagoon colour does all the pointing. Rules that keep it from looking generated:
+A night-navy app where each trip is a cream paper ticket with a tear-off stub, and one lagoon
+colour does all the pointing. Rules that keep it calm:
 
-- **Three type voices, each with a job:** Instrument Serif for names and amounts, Hanken Grotesk
-  for reading, IBM Plex Mono for data and labels.
-- **Status is a word or a shape, never colour alone:** rubber stamps (solid = booked, dashed =
-  to book), and red is reserved for one thing — at risk.
-- **The home screen answers three questions in order:** where am I (greeting, with the city's
-  temperature from Open-Meteo — keyless, city coordinates only, silently absent if it fails),
-  what's next (`nextUp` in `lib/home.ts`: the soonest booking not yet missed, with a countdown to
-  leave-by), and how is the trip going (the ticket: route codes, dates, crew, booked count).
-- The greeting, route codes and countdown text are pure functions in `lib/home.ts`, tested.
+- **Two type voices:** Cormorant Garamond for names and amounts; Jost for reading and for
+  small, widely spaced capitals on labels. No monospace: figures use tabular numerals, so
+  times and money still line up.
+- **Status is a word or a shape, never colour alone:** solid pill = booked, dashed = to book,
+  and red means one thing only — at risk.
+- **Two levels:** the home screen lists your trips as tickets (in progress first, then upcoming,
+  then past; the sample trip last). Opening one shows only what matters today: *Next up* (the
+  soonest booking not yet missed, with a countdown to leave-by — `nextUp` in `lib/home.ts`), the
+  trip ticket, and the route, which folds away under the ticket's arrow. Share, edit, interests
+  and demo controls live in the ⋯ menu.
+- Each thing is said once: a booking shown in *Next up* doesn't repeat its leave-by in the route.
+- The list is built from a small summary each phone saves when it opens a trip
+  (`tripSummary`); the sample trip is rebuilt for today so it is always mid-trip. The home card
+  for a trip in progress shows the city's temperature from Open-Meteo (keyless; city
+  coordinates only; silently absent on failure).
 
 ## Known limits (v1)
 

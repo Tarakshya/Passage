@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { tripSummary, type TripSummary } from './home';
 import type { Rates } from './balances';
 import { DEMO_TOKEN } from './demo';
 import type { LatLng } from './live-status';
@@ -60,19 +61,21 @@ export function useTrip(token: string) {
 // ---------- Trips known on this phone ----------
 
 const KNOWN = 'passage:trips';
-export interface KnownTrip { token: string; name: string; start?: string; end?: string; stops: number }
+/** A trip this phone has opened. Older entries (before the trips list) may lack the newer fields. */
+export type KnownTrip = TripSummary;
 
 export function knownTrips(): KnownTrip[] {
-  try { return JSON.parse(localStorage.getItem(KNOWN) ?? '[]') as KnownTrip[]; } catch { return []; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(KNOWN) ?? '[]') as Partial<KnownTrip>[];
+    return raw.filter((t): t is KnownTrip => typeof t.token === 'string' && typeof t.name === 'string')
+      .map(t => ({ ...t, stops: Array.isArray(t.stops) ? t.stops : [], crew: t.crew ?? [], booked: t.booked ?? 0, total: t.total ?? 0, home: t.home ?? '' }));
+  } catch { return []; }
 }
 
 function rememberTrip(trip: Trip) {
   try {
-    const stops = [...trip.stops].sort((a, b) => a.order - b.order);
-    const entry: KnownTrip = { token: trip.token, name: trip.name, start: stops[0]?.arrive, end: stops.at(-1)?.depart, stops: stops.length };
     const rest = knownTrips().filter(t => t.token !== trip.token);
-    localStorage.setItem(KNOWN, JSON.stringify([entry, ...rest].slice(0, 20)));
-    localStorage.setItem('passage:last', trip.token);
+    localStorage.setItem(KNOWN, JSON.stringify([tripSummary(trip), ...rest].slice(0, 20)));
   } catch { /* storage unavailable */ }
 }
 
