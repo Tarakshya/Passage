@@ -92,7 +92,7 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
           {busy && (
             <div className="rec-busy" role="status">
               <Icon name="progress_activity" className="spin" />
-              <span>Looking around {stop.name} for {mine ? 'you' : t.name}… about 20 seconds.</span>
+              <span>Looking around {stop.name} for {mine ? 'you' : t.name}… this can take up to a minute.</span>
             </div>
           )}
           {error && <div className="scan-note bad" role="alert" style={{ marginTop: 12 }}><Icon name="error" fill /><span>{error}</span></div>}
