@@ -114,7 +114,7 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
               </button>
             ))}
           </div>
-          <div className="help">View as Priya and edit the dinner bill to see the approval flow.</div>
+          <div className="help">View as Priya and edit the brunch bill to see the approval flow.</div>
         </div>
         <button className="btn-line" style={{ marginTop: 22 }} onClick={() => { onReset(); setSim({ offsetMin: 0, location: 'hotel' }); onClose(); }}>
           <Icon name="restart_alt" /> Reset the demo

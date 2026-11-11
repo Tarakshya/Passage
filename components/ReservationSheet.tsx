@@ -2,18 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtMoney, parseMoney } from '@/lib/balances';
+import { findDuplicate } from '@/lib/booking-ledger';
 import { geocodeAddress } from '@/lib/geo';
 import { newId } from '@/lib/mutations';
 import { prepareFile, scan, scanContext } from '@/lib/scan-client';
-import type { BookingScan } from '@/lib/schema';
-import { todayIn } from '@/lib/time';
+import type { BookingScan, ReceiptScan } from '@/lib/schema';
+import { fmtDay, todayIn } from '@/lib/time';
 import { placeCode } from '@/lib/home';
 import { flag, legLabel, placeName, sortedStops, targetFor } from '@/lib/trip';
 import type { BookingStatus, Currency, Reservation, ReservationType, Trip } from '@/lib/types';
 import { CURRENCY_DECIMALS, TRANSIT_TYPES } from '@/lib/types';
 import { Icon, Sheet, STATUS_LABEL, TYPE_ICON, TYPE_LABEL } from './ui';
 
-export interface ReservationPrefill { stopId?: string | null; legId?: string | null; type?: ReservationType; file?: File }
+export interface ReservationPrefill {
+  stopId?: string | null; legId?: string | null; type?: ReservationType; file?: File;
+  /** A booking already read elsewhere (e.g. uploaded in the Ledger): fill the form from it, no second scan. */
+  scanned?: { result: BookingScan; ms: number };
+}
 
 const TYPES: ReservationType[] = ['hotel', 'flight', 'train', 'ferry', 'bus', 'activity', 'dinner'];
 const CURRENCIES: Currency[] = ['EUR', 'INR', 'USD', 'GBP', 'CHF', 'JPY'];
@@ -25,13 +30,15 @@ function validTz(tz: string | null | undefined): tz is string {
   try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch { return false; }
 }
 
-export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onClose }: {
+export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onClose, onReceipt }: {
   trip: Trip;
   initial: Reservation | null;
   prefill: ReservationPrefill;
   onSave: (r: Reservation) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  /** The upload turned out to be a receipt: hand it to the Ledger. */
+  onReceipt?: (r: ReceiptScan, ms: number) => void;
 }) {
   const stops = useMemo(() => sortedStops(trip), [trip]);
   const firstStop = stops[0];
@@ -94,10 +101,23 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
       setScanState({ kind: 'error', message: (e as Error).message });
       return;
     }
-    const res = await scan('booking', trip.token, media, scanContext(trip, todayIn(firstStop?.tz ?? 'UTC')));
+    const ctx = scanContext(trip, todayIn(firstStop?.tz ?? 'UTC'));
+    const res = await scan('booking', trip.token, media, ctx);
     if (!res.ok) { setScanState({ kind: 'error', message: res.message }); return; }
     const r: BookingScan = res.result;
-    if (!r.isBooking) { setScanState({ kind: 'error', message: r.reason ?? "That doesn't look like a booking. You can enter it by hand below." }); return; }
+    if (!r.isBooking) {
+      // Not a booking: it may be a receipt, which belongs in the Ledger.
+      if (onReceipt) {
+        const rr = await scan('receipt', trip.token, media, ctx);
+        if (rr.ok && rr.result.isReceipt) { onReceipt(rr.result, rr.ms); return; }
+      }
+      setScanState({ kind: 'error', message: r.reason ?? "That doesn't look like a booking or a receipt. You can enter it by hand below." });
+      return;
+    }
+    applyScan(r, res.ms);
+  }
+
+  function applyScan(r: BookingScan, ms: number) {
     const lows = new Set<Field>();
     const take = <T,>(f: { value: T | null; confidence: 'high' | 'low' }, field: Field, set: (v: T) => void) => {
       if (f.value === null || f.value === undefined || f.value === '') return;
@@ -131,12 +151,13 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
     }
     setStatus('booked');
     setLow(lows);
-    setScanState({ kind: 'done', ms: res.ms, lows: lows.size });
+    setScanState({ kind: 'done', ms, lows: lows.size });
   }
 
   // A file chosen from a stop card's Upload chip arrives with the prefill.
   const started = useRef(false);
   useEffect(() => {
+    if (prefill.scanned && !started.current) { started.current = true; applyScan(prefill.scanned.result, prefill.scanned.ms); }
     if (prefill.file && !started.current) { started.current = true; void runScan(prefill.file); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill.file]);
@@ -149,7 +170,9 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
     end: endD && endT && `${endD}T${endT}` < `${startD}T${startT}` && endTz === startTz ? 'Ends before it starts' : null,
     price: price.trim() && priceMinor === null ? 'Not a valid amount' : null,
   };
-  const invalid = Object.values(errors).some(Boolean);
+  // The same booking twice (a second upload of one confirmation) is stopped before it is saved.
+  const dup = findDuplicate(trip, { id: initial?.id ?? '', type, title: title.trim(), startLocal: `${startD}T${startT}`, confirmation: confirmation.trim() || null });
+  const invalid = Object.values(errors).some(Boolean) || Boolean(dup);
 
   function save() {
     setTried(true);
@@ -184,7 +207,7 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
 
   const lowCls = (f: Field) => (low.has(f) ? 'low' : '');
   const clearLow = (f: Field) => low.has(f) && setLow(s => { const n = new Set(s); n.delete(f); return n; });
-  const err = (k: keyof typeof errors) => tried && errors[k] ? <div className="help warn">{errors[k]}</div> : low.has(k as Field) ? <div className="help warn">Check this — Claude wasn’t sure</div> : null;
+  const err = (k: keyof typeof errors) => tried && errors[k] ? <div className="help warn">{errors[k]}</div> : low.has(k as Field) ? <div className="help warn">Check this — Passage wasn’t sure</div> : null;
 
   // Hints use this trip's own places, so the ghost text matches what you're adding.
   const legFrom = leg ? placeName(trip, leg.from) : 'From';
@@ -207,20 +230,26 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
       title={editing ? 'Edit reservation' : 'New reservation'}
       onClose={onClose}
       tall
-      footer={<button className="btn-primary" onClick={save} disabled={scanState.kind === 'busy'}>{editing ? 'Save changes' : 'Save reservation'}</button>}
+      footer={<button className="btn-primary" onClick={save} disabled={scanState.kind === 'busy' || Boolean(dup)}>{dup ? 'Already added' : editing ? 'Save changes' : 'Save reservation'}</button>}
     >
       <input ref={fileRef} type="file" accept="image/*,application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void runScan(f); }} />
       <button className={`autofill ${scanState.kind === 'busy' ? 'busy' : ''}`} onClick={() => fileRef.current?.click()} disabled={scanState.kind === 'busy'}>
         <span className="ic"><Icon name={scanState.kind === 'busy' ? 'progress_activity' : 'wand_stars'} /></span>
         <span>
           <div className="a1">{scanState.kind === 'busy' ? 'Reading your confirmation…' : 'Auto-fill from a confirmation'}</div>
-          <div className="a2">{scanState.kind === 'busy' ? 'Usually about 5 seconds' : 'Drop a PDF or screenshot — we’ll read it'}</div>
+          <div className="a2">{scanState.kind === 'busy' ? 'Usually about 5 seconds' : 'Any booking or receipt, as a screenshot or PDF'}</div>
         </span>
       </button>
       {scanState.kind === 'done' && (
         <div className={`scan-note ${scanState.lows ? 'warn' : 'ok'}`} role="status">
           <Icon name={scanState.lows ? 'info' : 'check_circle'} fill />
           <span>Read in {(scanState.ms / 1000).toFixed(1)} s. {scanState.lows ? `Check the ${scanState.lows} highlighted ${scanState.lows === 1 ? 'field' : 'fields'}, then save.` : 'Have a look, then save.'}</span>
+        </div>
+      )}
+      {dup && (
+        <div className="scan-note warn" role="alert">
+          <Icon name="content_copy" />
+          <span>You’ve already uploaded this booking: <b>{dup.title}</b>, {fmtDay(dup.startLocal.slice(0, 10))}. It won’t be added twice.</span>
         </div>
       )}
       {scanState.kind === 'error' && (
@@ -238,7 +267,7 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
             </button>
           ))}
         </div>
-        {low.has('type') && <div className="help warn">Check this — Claude wasn’t sure</div>}
+        {low.has('type') && <div className="help warn">Check this — Passage wasn’t sure</div>}
       </div>
 
       <div className="field">
@@ -255,7 +284,7 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
           )}
           <Icon name="unfold_more" />
         </div>
-        {err('target') ?? <div className="help">{transit ? 'Stays, activities and dinners go under a city instead' : `Flights, trains and other transport go under the journey between two stops`}</div>}
+        {err('target') ?? <div className="help">{transit ? 'Stays, activities and meals go under a city instead' : `Flights, trains and other transport go under the journey between two stops`}</div>}
       </div>
 
       <div className="field">

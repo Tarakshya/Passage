@@ -10,7 +10,7 @@ export const TYPE_ICON: Record<ReservationType, string> = {
 };
 export const TYPE_LABEL: Record<ReservationType, string> = {
   hotel: 'Hotel', flight: 'Flight', train: 'Train', ferry: 'Ferry', bus: 'Bus', car: 'Car',
-  activity: 'Activity', dinner: 'Dinner',
+  activity: 'Activity', dinner: 'Meal',
 };
 export const STATUS_LABEL: Record<BookingStatus, string> = { todo: 'To book', pending: 'Pending', booked: 'Booked' };
 

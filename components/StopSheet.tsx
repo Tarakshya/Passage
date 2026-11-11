@@ -73,7 +73,7 @@ export function StopSheet({ trip, stop, live, me, onClose, onOpen, onAdd, onSave
       }
       title={
         <>
-          <h2>Booked here</h2>
+          <h2>Plans</h2>
           <button className="add-pill" onClick={onAdd}><Icon name="add" />Add</button>
         </>
       }
@@ -88,7 +88,7 @@ export function StopSheet({ trip, stop, live, me, onClose, onOpen, onAdd, onSave
             </div>
           </div>
         ))}
-        <button className="add-row" onClick={onAdd}><Icon name="add" />Add an activity or dinner in {stop.name}</button>
+        <button className="add-row" onClick={onAdd}><Icon name="add" />Add an activity or meal in {stop.name}</button>
         <Recs trip={trip} stop={stop} me={me} onSave={onSaveRecs} onEditProfile={onEditProfile} />
       </div>
     </Sheet>
