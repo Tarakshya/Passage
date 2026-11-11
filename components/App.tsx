@@ -7,6 +7,8 @@ import { DEMO_TOKEN } from '@/lib/demo';
 import {
   DEMO_HOTEL, forgetTrip, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTrip, type Sim,
 } from '@/lib/hooks';
+import { fmtMoney } from '@/lib/balances';
+import { bookingExpense, expenseIdFor } from '@/lib/booking-ledger';
 import { nextUp } from '@/lib/home';
 import { isTracked, liveStatus, type LiveStatus } from '@/lib/live-status';
 
@@ -115,11 +117,27 @@ export function App({ token }: { token: string }) {
     addToLeg: (l: Leg) => openRes(null, { legId: l.id, type: l.mode }),
   };
 
-  const saveRes = (r: Reservation) => void mutate({ kind: 'upsertReservation', reservation: r });
+  const saveRes = (r: Reservation) => {
+    void mutate({ kind: 'upsertReservation', reservation: r });
+    // A paid booking goes in the Ledger by itself: created once, then kept in step with the booking.
+    const e = bookingExpense(r, trip, meId);
+    const logged = trip.expenses.find(x => x.id === expenseIdFor(r.id));
+    if (e && !logged) {
+      void mutate({ kind: 'upsertExpense', expense: e });
+      notify(`Added ${fmtMoney(e.amount, e.currency)} to the Ledger`);
+    } else if (e && logged && logged.pendingAmount === null && (logged.amount !== e.amount || logged.currency !== e.currency)) {
+      void mutate({ kind: 'upsertExpense', expense: { ...logged, amount: e.amount, currency: e.currency, title: e.title } });
+    }
+  };
   const deleteRes = (id: string) => {
     const old = trip.reservations.find(r => r.id === id);
+    const logged = trip.expenses.find(x => x.id === expenseIdFor(id));
     void mutate({ kind: 'deleteReservation', id });
-    if (old) notify('Reservation deleted', { label: 'Undo', run: () => saveRes(old) });
+    if (logged) void mutate({ kind: 'deleteExpense', id: logged.id });
+    if (old) notify(logged ? 'Booking and its Ledger entry deleted' : 'Reservation deleted', {
+      label: 'Undo',
+      run: () => { void mutate({ kind: 'upsertReservation', reservation: old }); if (logged) void mutate({ kind: 'upsertExpense', expense: logged }); },
+    });
   };
   const saveExp = (e: Expense) => void mutate({ kind: 'upsertExpense', expense: e });
   const deleteExp = (id: string) => {

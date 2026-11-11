@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtMoney, parseMoney } from '@/lib/balances';
+import { findDuplicate } from '@/lib/booking-ledger';
 import { geocodeAddress } from '@/lib/geo';
 import { newId } from '@/lib/mutations';
 import { prepareFile, scan, scanContext } from '@/lib/scan-client';
 import type { BookingScan, ReceiptScan } from '@/lib/schema';
-import { todayIn } from '@/lib/time';
+import { fmtDay, todayIn } from '@/lib/time';
 import { placeCode } from '@/lib/home';
 import { flag, legLabel, placeName, sortedStops, targetFor } from '@/lib/trip';
 import type { BookingStatus, Currency, Reservation, ReservationType, Trip } from '@/lib/types';
@@ -169,7 +170,9 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
     end: endD && endT && `${endD}T${endT}` < `${startD}T${startT}` && endTz === startTz ? 'Ends before it starts' : null,
     price: price.trim() && priceMinor === null ? 'Not a valid amount' : null,
   };
-  const invalid = Object.values(errors).some(Boolean);
+  // The same booking twice (a second upload of one confirmation) is stopped before it is saved.
+  const dup = findDuplicate(trip, { id: initial?.id ?? '', type, title: title.trim(), startLocal: `${startD}T${startT}`, confirmation: confirmation.trim() || null });
+  const invalid = Object.values(errors).some(Boolean) || Boolean(dup);
 
   function save() {
     setTried(true);
@@ -227,7 +230,7 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
       title={editing ? 'Edit reservation' : 'New reservation'}
       onClose={onClose}
       tall
-      footer={<button className="btn-primary" onClick={save} disabled={scanState.kind === 'busy'}>{editing ? 'Save changes' : 'Save reservation'}</button>}
+      footer={<button className="btn-primary" onClick={save} disabled={scanState.kind === 'busy' || Boolean(dup)}>{dup ? 'Already added' : editing ? 'Save changes' : 'Save reservation'}</button>}
     >
       <input ref={fileRef} type="file" accept="image/*,application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void runScan(f); }} />
       <button className={`autofill ${scanState.kind === 'busy' ? 'busy' : ''}`} onClick={() => fileRef.current?.click()} disabled={scanState.kind === 'busy'}>
@@ -241,6 +244,12 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
         <div className={`scan-note ${scanState.lows ? 'warn' : 'ok'}`} role="status">
           <Icon name={scanState.lows ? 'info' : 'check_circle'} fill />
           <span>Read in {(scanState.ms / 1000).toFixed(1)} s. {scanState.lows ? `Check the ${scanState.lows} highlighted ${scanState.lows === 1 ? 'field' : 'fields'}, then save.` : 'Have a look, then save.'}</span>
+        </div>
+      )}
+      {dup && (
+        <div className="scan-note warn" role="alert">
+          <Icon name="content_copy" />
+          <span>You’ve already uploaded this booking: <b>{dup.title}</b>, {fmtDay(dup.startLocal.slice(0, 10))}. It won’t be added twice.</span>
         </div>
       )}
       {scanState.kind === 'error' && (

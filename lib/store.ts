@@ -62,11 +62,19 @@ export class LocalStore implements TripStore {
     return trip;
   }
 
-  async apply(token: string, m: Mutation): Promise<void> {
-    const trip = await this.load(token);
-    if (!trip) return;
-    this.save(applyMutation(trip, m));
-    this.bc?.postMessage({ token });
+  // Changes are applied one after another: two saves started together (a booking and its Ledger
+  // entry) must not both read the old trip, or the second would overwrite the first.
+  private queue: Promise<void> = Promise.resolve();
+
+  apply(token: string, m: Mutation): Promise<void> {
+    const run = this.queue.then(async () => {
+      const trip = await this.load(token);
+      if (!trip) return;
+      this.save(applyMutation(trip, m));
+      this.bc?.postMessage({ token });
+    });
+    this.queue = run.catch(() => {});
+    return run;
   }
 
   async create(trip: Trip): Promise<void> {
