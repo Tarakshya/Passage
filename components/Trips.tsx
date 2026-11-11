@@ -18,6 +18,7 @@ export async function createTrip(t: Trip, go: (href: string) => void) {
   try {
     localStorage.setItem(`passage:me:${t.token}`, t.adminId);
     localStorage.setItem(`passage:askprofile:${t.token}`, '1'); // ask the creator what they love on arrival
+    if (t.travelers.length > 1) localStorage.setItem(`passage:askshare:${t.token}`, '1'); // then offer the link for everyone else
   } catch { /* ignore */ }
   go(`/t/${t.token}`);
 }

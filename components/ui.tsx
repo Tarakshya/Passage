@@ -42,6 +42,7 @@ export function Sheet({
   tall?: boolean; dark?: boolean; hero?: ReactNode; label: string; className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
   // The latest onClose, read through a ref: parents re-render often (the clock ticks every 30 s)
   // and pass a new function each time. Re-running the effect below on each render used to pull
   // focus back to the sheet, which closed any open date picker or keyboard mid-use.
@@ -51,17 +52,35 @@ export function Sheet({
     const prev = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
-    const { overflow } = document.body.style;
-    document.body.style.overflow = 'hidden';
+    // Pin the page underneath. On iPhone, overflow:hidden alone still lets the page slide when the
+    // keyboard or its autofill bar opens, which shoved the whole screen down.
+    const body = document.body.style;
+    const saved = { overflow: body.overflow, position: body.position, top: body.top, width: body.width };
+    const y = window.scrollY;
+    Object.assign(body, { overflow: 'hidden', position: 'fixed', top: `-${y}px`, width: '100%' });
+    // Keep the sheet inside the part of the screen the keyboard leaves visible.
+    const vv = window.visualViewport;
+    const fit = () => {
+      const el = backdrop.current;
+      if (!el || !vv) return;
+      el.style.height = `${vv.height}px`;
+      el.style.top = `${vv.offsetTop}px`;
+    };
+    vv?.addEventListener('resize', fit);
+    vv?.addEventListener('scroll', fit);
+    fit();
     ref.current?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = overflow;
+      vv?.removeEventListener('resize', fit);
+      vv?.removeEventListener('scroll', fit);
+      Object.assign(body, saved);
+      if (saved.position !== 'fixed') window.scrollTo(0, y);
       prev?.focus?.({ preventScroll: true });
     };
   }, []);
   return (
-    <div className={`backdrop ${dark ? 'dark' : ''}`} onClick={onClose}>
+    <div ref={backdrop} className={`backdrop ${dark ? 'dark' : ''}`} onClick={onClose}>
       <div className="sheet-wrap">
         {hero}
         <div

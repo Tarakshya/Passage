@@ -214,7 +214,7 @@ export function App({ token }: { token: string }) {
             preScanned={sheet.preScanned}
             onBooking={sheet.initial ? undefined : (result, ms) => { setSheet({ kind: 'res', initial: null, prefill: { scanned: { result, ms } } }); notify('That’s a booking, so it goes on the trip'); }} />
         )}
-        {sheet?.kind === 'trip' && <TripForm initial={sheet.initial} onSave={saveTrip} onClose={() => setSheet(null)} />}
+        {sheet?.kind === 'trip' && <TripForm initial={sheet.initial} canInvite={shared && !trip.isDemo} onSave={saveTrip} onClose={() => setSheet(null)} />}
         {sheet?.kind === 'menu' && (
           <TripMenu onClose={() => setSheet(null)} onPick={k => setSheet(k === 'profile' ? { kind: 'profile', firstTime: false } : k === 'trip' ? { kind: 'trip', initial: trip } : { kind: k })}
             liveTimes={needsLocation ? () => { setLocPref(true); setSheet(null); } : undefined} isDemo={isDemo}
@@ -237,7 +237,12 @@ export function App({ token }: { token: string }) {
           }} />
         )}
         {sheet?.kind === 'profile' && meT && (
-          <ProfileSheet traveler={meT} firstTime={sheet.firstTime} onClose={() => setSheet(sheet.back ?? null)}
+          <ProfileSheet traveler={meT} firstTime={sheet.firstTime} onClose={() => {
+            // A new trip with other travelers: after the interests, offer the link to invite them.
+            let share = false;
+            try { const k = `passage:askshare:${trip.token}`; share = sheet.firstTime && localStorage.getItem(k) === '1'; localStorage.removeItem(k); } catch { /* ignore */ }
+            setSheet(sheet.back ?? (share ? { kind: 'share' } : null));
+          }}
             onSave={profile => void mutate({ kind: 'upsertProfile', travelerId: meT.id, profile })} />
         )}
 

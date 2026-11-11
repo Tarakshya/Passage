@@ -60,7 +60,7 @@ interface StopDraft {
 }
 type FillState = { kind: 'busy' } | { kind: 'done'; title: string } | { kind: 'error'; message: string };
 
-export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; onSave: (t: Trip) => Promise<void>; onClose: () => void }) {
+export function TripForm({ initial, onSave, onClose, canInvite = false }: { initial: Trip | null; canInvite?: boolean; onSave: (t: Trip) => Promise<void>; onClose: () => void }) {
   const today = todayIn(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [name, setName] = useState(initial?.name ?? '');
   const [travelers, setTravelers] = useState<Traveler[]>(initial?.travelers ?? [{ id: newId('p'), name: '', color: COLORS[0] }]);
@@ -105,7 +105,7 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
 
   const errors = {
     name: !name.trim() ? 'Name the trip' : null,
-    you: !travelers[0]?.name.trim() ? 'Add your name' : null,
+    you: !travelers[0]?.name.trim() ? 'Add yourself first' : null,
     home: !home ? 'Where do you start from?' : null,
     stops: stops.some(s => !s.place) ? 'Pick a place for every stop' : stops.some(s => s.depart < s.arrive) ? 'A stop ends before it starts' : null,
   };
@@ -149,6 +149,18 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
     }
   }
 
+  const [copied, setCopied] = useState(false);
+  /** Send the trip's link from the phone's share menu (or copy it where there isn't one). */
+  async function invite() {
+    const url = `${window.location.origin}/t/${token}`;
+    const others = travelers.slice(1).map(t => t.name.trim()).filter(Boolean);
+    const text = `${others.length ? `${others.join(', ')}, join` : 'Join'} “${name.trim() || 'our trip'}” on Passage`;
+    try {
+      if (navigator.share) await navigator.share({ title: name.trim() || 'Passage', text, url });
+      else { await navigator.clipboard.writeText(url); setCopied(true); }
+    } catch { /* cancelled */ }
+  }
+
   const setStop = (id: string, patch: Partial<StopDraft>) => setStops(s => s.map(x => (x.id === id ? { ...x, ...patch } : x)));
 
   return (
@@ -167,8 +179,10 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
           {travelers.map((t, i) => (
             <div key={t.id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <span className="avatar" style={{ background: t.color, margin: 0, border: 0 }} aria-hidden="true">{t.name.trim()[0]?.toUpperCase() ?? ''}</span>
-              <input className="input" value={t.name} placeholder={i === 0 ? 'Your name' : 'Name'} aria-label={i === 0 ? 'Your name' : `Traveler ${i + 1}`}
-                autoComplete="off" autoCorrect="off" name={`passage-traveler-${i}`}
+              {/* No "name" in the hint, label or field name: iPhones match that word and pop up
+                  contact autofill, which pushed the screen around. */}
+              <input className="input" value={t.name} placeholder={i === 0 ? 'You' : 'Who else is going?'} aria-label={i === 0 ? 'You' : `Traveler ${i + 1}`}
+                autoComplete="off" autoCorrect="off" autoCapitalize="words" spellCheck={false} data-form-type="other" name={`pg-t${i}`}
                 onChange={e => setTravelers(ts => ts.map(x => (x.id === t.id ? { ...x, name: e.target.value } : x)))} />
               {i > 0 && (!initial || !initial.expenses.some(e => e.payerId === t.id || e.splitWith.includes(t.id))) && (
                 <button className="close-btn" aria-label={`Remove ${t.name || 'traveler'}`} onClick={() => setTravelers(ts => ts.filter(x => x.id !== t.id))}><Icon name="close" /></button>
@@ -182,6 +196,13 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
             <Icon name="person_add" />Add traveler
           </button>
         )}
+        {travelers.length > 1 && (initial ? canInvite && (
+          <button className="chip small invite" style={{ marginTop: 10, marginLeft: 8 }} onClick={invite}>
+            <Icon name="ios_share" />{copied ? 'Link copied' : 'Share the trip with them'}
+          </button>
+        ) : (
+          <div className="help">Once you create the trip, you’ll get a link to send them. They open it, pick their name and join.</div>
+        ))}
       </div>
 
       <div className="field">
