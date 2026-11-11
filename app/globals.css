@@ -474,3 +474,10 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 
 .tk-status { font-size: 10.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--paper-muted); }
 .ticket + .help, .ticket + div { margin-top: 14px; }
+
+/* Clean start (/start) */
+.first-trip { margin-top: 26px; border: 1px solid var(--line); border-radius: 20px; padding: 18px 18px 18px; }
+.first-trip ul { margin: 0 0 18px; padding: 0; list-style: none; display: grid; gap: 11px; }
+.first-trip li { position: relative; padding-left: 20px; font-size: 14.5px; color: var(--cream-2); line-height: 1.4; }
+.first-trip li::before { content: ''; position: absolute; left: 2px; top: .55em; width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--lagoon); }
+.quiet-link { display: block; margin: 22px auto 0; min-height: 44px; padding: 0 12px; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--slate); }

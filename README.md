@@ -10,7 +10,7 @@ A shared trip planner for a small group on a multi-city trip. Your trip is a boa
 
 It installs from a link (Add to Home Screen), has no accounts, and opens with no signal.
 
-**Try it:** open the app on a phone and tap the sample trip (or go straight to `/t/demo`). The demo trip is always in progress, so tap **Demo** and move the clock to watch today's Belvedere tickets go from *on track* to *at risk*.
+**Try it:** open the app on a phone and tap the sample trip (or go straight to `/t/demo`). To hand the app to someone to use for real, send `/start`: it opens with no sample trip, just "Plan your first trip". The demo trip is always in progress, so tap **Demo** and move the clock to watch today's Belvedere tickets go from *on track* to *at risk*.
 
 > Portfolio product by Tarakshya Mehrish. Design: "Boarding Pass" (Cormorant Garamond + Jost). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the decisions behind it.
 
