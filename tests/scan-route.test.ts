@@ -21,19 +21,22 @@ const booking = {
   confirmation: f('0457 1893 2210'), price: f(96.4), currency: f('EUR'), cancelBy: f(null, 'low'),
   suggestedStopId: f(null, 'low'), suggestedLegId: f('leg-vie-gmu'),
 };
-const reply = (input: unknown) => ({ content: [{ type: 'tool_use', id: 't', name: 'record_booking', input }], usage: { input_tokens: 1800, output_tokens: 300, cache_read_input_tokens: 1200, cache_creation_input_tokens: 0 } });
+const reply = (input: unknown) => ({ content: [{ type: 'text', text: JSON.stringify(input) }], usage: { input_tokens: 1800, output_tokens: 300, cache_read_input_tokens: 1200, cache_creation_input_tokens: 0 } });
 
 describe('/api/scan', () => {
   beforeEach(() => { create.mockReset(); process.env.ANTHROPIC_API_KEY = 'test'; delete process.env.NEXT_PUBLIC_SUPABASE_URL; vi.spyOn(console, 'log').mockImplementation(() => {}); vi.spyOn(console, 'error').mockImplementation(() => {}); });
 
-  it('forces the strict booking tool and caches the instructions', async () => {
+  it('asks for the booking schema as structured output and caches the instructions', async () => {
     create.mockResolvedValue(reply(booking));
     const res = await POST(req(body()));
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.result.service.value).toBe('IC 548');
     const args = create.mock.calls[0][0];
-    expect(args.tool_choice).toEqual({ type: 'tool', name: 'record_booking', disable_parallel_tool_use: true });
+    expect(args.tool_choice).toBeUndefined(); // this model refuses forced tool use
+    expect(args.tools).toBeUndefined();
+    expect(args.output_config.format.type).toBe('json_schema');
+    expect(args.output_config.format.schema.properties).toHaveProperty('suggestedStopId');
     expect(args.system[0].cache_control).toEqual({ type: 'ephemeral' });
     expect(args.messages[0].content[0].type).toBe('image');
     expect(args.messages[0].content[1].text).toContain('leg leg-vie-gmu: Vienna → Gmunden');

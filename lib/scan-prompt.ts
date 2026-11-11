@@ -1,7 +1,8 @@
 // Prompt and output schemas for /api/scan. Server-only.
 //
 // Design notes (see docs/ARCHITECTURE.md):
-//  • A forced, strict tool call means the reply is always schema-valid JSON — no parsing prose.
+//  • Structured outputs (a JSON schema on the reply) mean it is always schema-valid JSON. The
+//    schemas are kept as tool definitions because that is a convenient, typed home for them.
 //  • Every field carries its own confidence, so the form can underline what to double-check.
 //  • The instructions and tool schemas never change, so they sit before the cache breakpoint;
 //    only the image and the trip context vary per request.
@@ -76,7 +77,7 @@ export const RECEIPT_TOOL: Anthropic.Tool = {
   }),
 };
 
-export const SYSTEM_PROMPT = `You read travel documents for Passage, a trip planner, and record their fields with the provided tool.
+export const SYSTEM_PROMPT = `You read travel documents for Passage, a trip planner, and record their fields in the JSON format you are given.
 
 Rules:
 - Copy what the document says. Never invent a value: if a field is not shown, its value is an empty string "".

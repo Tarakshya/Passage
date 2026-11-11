@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { takeScan } from '@/lib/rate-limit';
-import { fromToolInput, BOOKING_TOOL, contextText, RECEIPT_TOOL, SCAN_MODEL, SYSTEM_PROMPT } from '@/lib/scan-prompt';
+import { BOOKING_TOOL, contextText, fromToolInput, RECEIPT_TOOL, SCAN_MODEL, SYSTEM_PROMPT } from '@/lib/scan-prompt';
 import { BookingScanSchema, ReceiptScanSchema } from '@/lib/schema';
 
 export const runtime = 'nodejs';
@@ -27,6 +27,15 @@ const Body = z.object({
     legs: z.array(z.object({ id: z.string(), label: z.string(), mode: z.string() })).max(60),
   }),
 });
+
+/** The JSON object Claude replied with (structured outputs make it the whole text). */
+function replyJson(content: Anthropic.ContentBlock[]): unknown {
+  const text = content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map(b => b.text).join('').trim();
+  const a = text.indexOf('{');
+  const b = text.lastIndexOf('}');
+  if (a === -1 || b <= a) return null;
+  try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; }
+}
 
 const fail = (status: number, message: string) => NextResponse.json({ ok: false, message }, { status });
 
@@ -56,22 +65,21 @@ export async function POST(req: Request) {
     const msg = await client.messages.create({
       model: SCAN_MODEL,
       max_tokens: 1500,
-      // Instructions + both tool schemas are identical on every call → cached prefix.
+      // The instructions are identical on every call → cached prefix. The reply is constrained to
+      // the booking or receipt schema (structured outputs), so it is always parseable JSON.
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-      tools: [BOOKING_TOOL, RECEIPT_TOOL],
-      tool_choice: { type: 'tool', name: tool.name, disable_parallel_tool_use: true },
+      output_config: { format: { type: 'json_schema', schema: tool.input_schema as Record<string, unknown> } },
       messages: [{
         role: 'user',
         content: [
           media,
-          { type: 'text', text: `${contextText(body.context)}\n\nRead this ${body.kind === 'booking' ? 'booking' : 'receipt'} and record it with ${tool.name}.` },
+          { type: 'text', text: `${contextText(body.context)}\n\nRead this ${body.kind === 'booking' ? 'booking' : 'receipt'} and record its fields.` },
         ],
       }],
     });
 
-    const use = msg.content.find(b => b.type === 'tool_use');
     const schema = body.kind === 'booking' ? BookingScanSchema : ReceiptScanSchema;
-    const parsed = schema.safeParse(fromToolInput(use && 'input' in use ? use.input : null, ['price', 'total']));
+    const parsed = schema.safeParse(fromToolInput(replyJson(msg.content), ['price', 'total']));
 
     console.log(JSON.stringify({
       event: 'scan', kind: body.kind, model: SCAN_MODEL, ok: parsed.success, ms: Date.now() - started,
