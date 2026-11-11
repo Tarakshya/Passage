@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { takeQuota } from '@/lib/rate-limit';
 import { RECS_MODEL, RECS_SCHEMA, RECS_SYSTEM, RECS_TOOLS, recsUserText } from '@/lib/recommend-prompt';
 import { RecsResultSchema } from '@/lib/schema';
+import { cleanKlookPrice, cleanKlookUrl } from '@/lib/klook';
 
 export const runtime = 'nodejs';
 export const maxDuration = 90;
@@ -74,13 +75,21 @@ export async function POST(req: Request) {
     const parsed = RecsResultSchema.safeParse(msg ? finalJson(msg.content) : null);
 
     console.log(JSON.stringify({
-      event: 'recs', model: RECS_MODEL, ok: parsed.success, ms: Date.now() - started, searches,
+      event: 'recs', model: RECS_MODEL, ok: parsed.success, klook: parsed.success ? parsed.data.items.filter(i => cleanKlookUrl(i.klook_url)).length : 0, ms: Date.now() - started, searches,
       input_tokens: msg?.usage.input_tokens, output_tokens: msg?.usage.output_tokens, stop: msg?.stop_reason,
     }));
 
     if (!parsed.success) return fail(502, "Couldn't put together good picks this time. Try again in a minute.");
-    // Keep only links that look like real web addresses.
-    const items = parsed.data.items.slice(0, 5).map(i => ({ ...i, url: i.url && /^https?:\/\//.test(i.url) ? i.url : null }));
+    // Keep only links that look like real web addresses, and Klook details only for real klook.com pages.
+    const items = parsed.data.items.slice(0, 5).map(({ klook_url, klook_price, official_price, ...i }) => {
+      const kUrl = cleanKlookUrl(klook_url);
+      const price = kUrl ? cleanKlookPrice(klook_price) : null;
+      return {
+        ...i,
+        url: i.url && /^https?:\/\//.test(i.url) ? i.url : null,
+        klook: kUrl ? { url: kUrl, price, was: price ? cleanKlookPrice(official_price) : null } : null,
+      };
+    });
     return NextResponse.json({ ok: true, items, ms: Date.now() - started });
   } catch (err) {
     const timeout = err instanceof Anthropic.APIConnectionTimeoutError;

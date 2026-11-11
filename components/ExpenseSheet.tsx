@@ -148,7 +148,7 @@ export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, not
         <div className="chips" role="radiogroup" aria-label="Paid by">
           {trip.travelers.map(t => (
             <button key={t.id} role="radio" aria-checked={payer === t.id} className={`chip small ${payer === t.id ? 'on' : ''}`} onClick={() => setPayer(t.id)}>
-              <span className="av" style={{ background: payer === t.id ? 'rgba(255,255,255,.3)' : t.color }}>{t.name[0]}</span>{t.id === me ? 'You' : t.name}
+              <span className="av" style={{ background: payer === t.id ? undefined : t.color }}>{t.name[0]}</span>{t.id === me ? 'You' : t.name}
             </button>
           ))}
         </div>

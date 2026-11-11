@@ -48,6 +48,7 @@ export const TripSchema = z.object({
     items: z.array(z.object({
       name: z.string(), kind: z.enum(REC_KINDS), why: z.string(), interest: z.string(),
       area: z.string(), distance: z.string(), url: z.string().nullable(),
+      klook: z.object({ url: z.string(), price: z.string().nullable(), was: z.string().nullable() }).nullable().optional(),
     })),
   })).optional(),
 });
@@ -100,6 +101,7 @@ export const RecsResultSchema = z.object({
   items: z.array(z.object({
     name: z.string(), kind: z.enum(REC_KINDS), why: z.string(), interest: z.string(),
     area: z.string(), distance: z.string(), url: z.string().nullable(),
+    klook_url: z.string().nullable(), klook_price: z.string().nullable(), official_price: z.string().nullable(),
   })).min(1).max(6),
 });
 export type RecsResult = z.infer<typeof RecsResultSchema>;

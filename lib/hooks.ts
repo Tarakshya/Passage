@@ -181,6 +181,40 @@ export function useRates(base: Currency): RatesState {
   return s;
 }
 
+// ---------- Weather ----------
+
+/**
+ * The temperature right now in a city (°C), from Open-Meteo: free, no key, no account. Only the
+ * city's own coordinates are sent, rounded — never the traveler's location. Any failure simply
+ * returns null and the greeting leaves the temperature out.
+ */
+export function useTemp(place: LatLng | null | undefined): number | null {
+  const lat = place ? place.lat.toFixed(2) : null;
+  const lng = place ? place.lng.toFixed(2) : null;
+  const [t, setT] = useState<number | null>(null);
+  useEffect(() => {
+    setT(null);
+    if (lat === null || lng === null) return;
+    const k = `passage:temp:${lat},${lng}`;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(k) ?? 'null') as { t: number; at: number } | null;
+      if (c && Date.now() - c.at < 30 * 60_000) { setT(c.t); return; }
+    } catch { /* ignore */ }
+    const ctl = new AbortController();
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m`, { signal: ctl.signal })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: { current?: { temperature_2m?: number } }) => {
+        const v = d.current?.temperature_2m;
+        if (typeof v !== 'number' || !Number.isFinite(v)) return;
+        setT(Math.round(v));
+        try { sessionStorage.setItem(k, JSON.stringify({ t: Math.round(v), at: Date.now() })); } catch { /* ignore */ }
+      })
+      .catch(() => { /* no temperature shown */ });
+    return () => ctl.abort();
+  }, [lat, lng]);
+  return t;
+}
+
 // ---------- Toast ----------
 
 export const ToastContext = createContext<(msg: string, action?: { label: string; run: () => void }) => void>(() => {});

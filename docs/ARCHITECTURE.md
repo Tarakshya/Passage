@@ -63,6 +63,25 @@ Each traveler picks five interests and can share one page they love. In any city
 - **Cost guardrails.** 15 runs per trip per day, a separate pool for the demo, and a log line per
   run with latency, tokens and search count. A run costs roughly $0.05–0.10, mostly search.
 
+## 2c. Klook: shown only where it is real
+
+T's rule: Klook for experiences, deals and prices, and for its trains, buses and ferries — and if
+Klook doesn't have it, show nothing.
+
+- **Experiences.** While researching picks, Claude may spend up to two searches checking whether
+  Klook sells that exact ticket or tour. It returns a Klook address and "from" price only if it
+  saw them in search results. The server then keeps the link only if it is an `https` page on
+  `klook.com` (look-alike domains and the bare home page are dropped) and the price only if it
+  looks like a price (`lib/klook.ts`). Nothing ever builds a Klook URL or price. Picks Klook
+  doesn't sell show a plain "Website" link, or nothing.
+- **Transport.** An unbooked *train* leg gets a Klook pill only when both ends are in countries
+  Klook's Europe rail shop lists (GB, ES, IT, FR, NL, CH, DE). Klook doesn't publish bus or ferry
+  coverage per route, so those legs get no pill rather than a hopeful one. The demo's Austria and
+  Croatia legs therefore show none — by design.
+- **No partner API.** Klook's full API needs a partner agreement. This works without one, and
+  `NEXT_PUBLIC_KLOOK_AID` adds an affiliate id to links if one is ever granted.
+- Prices are a snapshot, so the list says when it was researched and that Klook prices change.
+
 ## 3. Live status is pure, local and honest
 
 `lib/live-status.ts` has no I/O. It takes a booking, "now", where you are and where you need to be:
@@ -125,14 +144,14 @@ without losing it. The same reducer replays the outbox over the last cached copy
 - **Fonts:** self-hosted via Fontsource, so there is no third-party request and they work offline.
 - **City capsules:** each city in the itinerary is a compact capsule with a fixed street map of that
   city fading in from the right (lazy-loaded). Live bookings for today sit just below their city.
-- **Maps:** the trip tile shows a street map of the city you're in today (`mapStop` in
+- **Maps:** the ticket carries a faint street map of the city you're in today (`mapStop` in
   `lib/trip.ts`): the first stop before the trip, the last after it, and on a travel day it
   switches once your first booking out has left. It is a static map made of the 2–6
   OpenStreetMap image tiles that cover the box (`components/MapView.tsx`). The first version
   used a full vector map engine: about 1 MB plus a background worker, slow on phones, for a map
   nobody pans. The static version needs no key, appears almost at once, and is cached offline.
-  It follows the OSM tile policy: visible credit, a Referer, caching. The designed gradient shows
-  until the tiles arrive, and stays if they don't.
+  It follows the OSM tile policy: visible credit, a Referer, caching. Each city stub carries a fixed map of its own city. If tiles don't
+  arrive, the plain card stays.
 - **Place search:** Photon (OpenStreetMap). Time zones come from `tz-lookup` on the device, so a
   stop's zone never depends on a network call.
 - **Security headers:** strict CSP limited to the hosts the app talks to, an origin-only referrer
@@ -140,6 +159,21 @@ without losing it. The same reducer replays the outbox over the last cached copy
   `frame-ancestors 'none'`.
 - **The demo** runs entirely on the device, always mid-trip (dates are relative to now), and
   re-seeds after 6 hours. Reviewers can't change it for each other.
+
+## 7. The look: "Boarding Pass"
+
+A night-navy app where the trip is a cream paper ticket with a tear-off stub, and one bright
+lagoon colour does all the pointing. Rules that keep it from looking generated:
+
+- **Three type voices, each with a job:** Instrument Serif for names and amounts, Hanken Grotesk
+  for reading, IBM Plex Mono for data and labels.
+- **Status is a word or a shape, never colour alone:** rubber stamps (solid = booked, dashed =
+  to book), and red is reserved for one thing — at risk.
+- **The home screen answers three questions in order:** where am I (greeting, with the city's
+  temperature from Open-Meteo — keyless, city coordinates only, silently absent if it fails),
+  what's next (`nextUp` in `lib/home.ts`: the soonest booking not yet missed, with a countdown to
+  leave-by), and how is the trip going (the ticket: route codes, dates, crew, booked count).
+- The greeting, route codes and countdown text are pure functions in `lib/home.ts`, tested.
 
 ## Known limits (v1)
 

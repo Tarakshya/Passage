@@ -1,15 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { withAid } from '@/lib/klook';
 import { fetchRecs, isStale } from '@/lib/recs-client';
-import type { RecKind, RecSet, Stop, Trip } from '@/lib/types';
+import type { RecSet, Stop, Trip } from '@/lib/types';
 import { recKey } from '@/lib/types';
-import { Avatar, Icon } from './ui';
+import { Icon } from './ui';
 
-const REC_ICON: Record<RecKind, string> = {
-  food: 'restaurant', drink: 'local_bar', sight: 'photo_camera', museum: 'museum',
-  outdoors: 'park', shop: 'shopping_bag', nightlife: 'nightlife', experience: 'wand_stars',
-};
+/** "RESEARCHED TODAY" / "RESEARCHED 3 DAYS AGO" — picks are a snapshot, so say how old. */
+function researched(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  return days <= 0 ? 'Researched today' : days === 1 ? 'Researched yesterday' : `Researched ${days} days ago`;
+}
 
 export function Recs({ trip, stop, me, onSave, onEditProfile }: {
   trip: Trip; stop: Stop; me: string; onSave: (s: RecSet) => void; onEditProfile: () => void;
@@ -20,7 +22,8 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
   const t = trip.travelers.find(x => x.id === who) ?? trip.travelers[0];
   const set = trip.recs?.[recKey(stop.id, t.id)];
   const ready = (t.profile?.interests.length ?? 0) > 0;
-  const label = t.id === me ? 'you' : t.name;
+  const mine = t.id === me;
+  const hasKlook = Boolean(set?.items.some(r => r.klook));
 
   async function run() {
     setBusy(true);
@@ -32,18 +35,16 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
   }
 
   return (
-    <section className="recs" aria-label={`Picked for travelers in ${stop.name}`}>
-      <div className="section-h" style={{ margin: '22px 2px 10px' }}>
-        <h3>Picked for {label}</h3>
-        <span className="tag"><Icon name="wand_stars" />AI</span>
+    <section className="picks" aria-label={`Picked for travelers in ${stop.name}`}>
+      <div className="section-h" style={{ margin: '0 0 12px' }}>
+        <h3>Picked for {mine ? 'you' : t.name}</h3>
       </div>
 
       {trip.travelers.length > 1 && (
-        <div className="chips" role="tablist" aria-label="Whose picks" style={{ marginBottom: 12 }}>
+        <div className="who-tabs" role="tablist" aria-label="Whose picks">
           {trip.travelers.map(x => (
-            <button key={x.id} role="tab" aria-selected={x.id === t.id} className={`chip small ${x.id === t.id ? 'on' : ''}`}
-              onClick={() => { setWho(x.id); setError(null); }}>
-              <Avatar t={x} small />{x.id === me ? 'You' : x.name}
+            <button key={x.id} role="tab" aria-selected={x.id === t.id} onClick={() => { setWho(x.id); setError(null); }}>
+              {x.id === t.id ? `For ${x.name}` : x.name}
             </button>
           ))}
         </div>
@@ -51,55 +52,61 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
 
       {!ready ? (
         <div className="rec-empty">
-          <p>{t.id === me ? 'Pick five interests and Passage will suggest things for you here.' : `${t.name} hasn’t picked their interests yet.`}</p>
-          {t.id === me && <button className="btn-line" onClick={onEditProfile}>Add your interests</button>}
+          <p>{mine ? 'Pick five interests and Passage will find things for you here.' : `${t.name} hasn’t picked their interests yet.`}</p>
+          {mine && <button className="btn-line" onClick={onEditProfile}>Add your interests</button>}
         </div>
       ) : (
         <>
-          <div className="interest-row">
-            {t.profile!.interests.map(i => <span key={i} className="interest">{i}</span>)}
-            {t.id === me && <button className="interest edit" onClick={onEditProfile} aria-label="Edit your interests"><Icon name="edit" />Edit</button>}
-          </div>
+          <p className="loves">
+            {t.profile!.interests.map(i => i.toLowerCase()).join(', ')}
+            {mine && <button onClick={onEditProfile} aria-label="Edit your interests">Edit</button>}
+          </p>
 
           {set && !busy && (
-            <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+            <>
               {isStale(set, t) && (
-                <div className="scan-note warn"><Icon name="info" fill /><span>{t.id === me ? 'Your' : `${t.name}’s`} interests changed since these were picked. Refresh for new ones.</span></div>
+                <div className="scan-note warn"><Icon name="info" fill /><span>{mine ? 'Your' : `${t.name}’s`} interests changed since these were picked. Refresh for new ones.</span></div>
               )}
-              {set.items.map(r => (
-                <article key={r.name} className="rec">
-                  <span className="rec-ic"><Icon name={REC_ICON[r.kind]} fill /></span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="r1">{r.name}</div>
-                    <div className="r2">{r.area} · {r.distance}</div>
-                    <p className="why">{r.why}</p>
-                    <div className="rec-foot">
-                      <span className="interest small">{r.interest}</span>
-                      {r.url && <a href={r.url} target="_blank" rel="noopener noreferrer">Open <Icon name="open_in_new" /></a>}
+              {set.items.map((r, i) => (
+                <article key={r.name} className="pick">
+                  <span className="no" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4>{r.name}</h4>
+                    <p>{r.why}</p>
+                    <div className="row">
+                      <span className="where">{r.distance} · {r.area}</span>
+                      {r.klook ? (
+                        <a className="kpill" href={withAid(r.klook.url)} target="_blank" rel="noopener noreferrer"
+                          aria-label={`${r.name} on Klook${r.klook.price ? `, from ${r.klook.price}` : ''}`}>
+                          {r.klook.was && r.klook.price && <s>{r.klook.was}</s>}
+                          {r.klook.price ? `${r.klook.price} on Klook` : 'On Klook'}
+                        </a>
+                      ) : r.url && <a className="site" href={r.url} target="_blank" rel="noopener noreferrer">Website</a>}
                     </div>
                   </div>
                 </article>
               ))}
-            </div>
+            </>
           )}
 
           {busy && (
             <div className="rec-busy" role="status">
               <Icon name="progress_activity" className="spin" />
-              <span>Looking around {stop.name} for {label}… this takes about 20 seconds.</span>
+              <span>Looking around {stop.name} for {mine ? 'you' : t.name}… about 20 seconds.</span>
             </div>
           )}
           {error && <div className="scan-note bad" role="alert" style={{ marginTop: 12 }}><Icon name="error" fill /><span>{error}</span></div>}
 
           {!busy && (
             <button className={set ? 'btn-line' : 'btn-primary'} style={{ marginTop: 12 }} onClick={run}>
-              {set ? `Refresh picks` : `Find things for ${label} in ${stop.name}`}
+              {set ? 'Refresh picks' : `Find things for ${mine ? 'you' : t.name} in ${stop.name}`}
             </button>
           )}
           {set && !busy && (
-            <div className="help" style={{ textAlign: 'center' }}>
-              Picked by Claude from live web search · check details before you go
-            </div>
+            <p className="credit">
+              {researched(set.generatedAt)} from the web by Claude · check before you go
+              {hasKlook && <><br />Klook prices as seen that day · they change</>}
+            </p>
           )}
         </>
       )}

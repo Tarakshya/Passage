@@ -4,16 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DEMO_TOKEN } from '@/lib/demo';
 import {
-  DEMO_HOTEL, knownTrips, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTrip,
+  DEMO_HOTEL, knownTrips, ToastContext, useLocation, useLocationPref, useMe, useNow, useRates, useTemp, useTrip,
   type KnownTrip, type Sim,
 } from '@/lib/hooks';
-import { isTracked, liveStatus, mostUrgent, type LiveStatus } from '@/lib/live-status';
+import { greeting, nextUp, ticketRange } from '@/lib/home';
+import { isTracked, liveStatus, type LiveStatus } from '@/lib/live-status';
 import { storeFor } from '@/lib/store';
-import { fmtRange } from '@/lib/time';
-import { currentStop, targetFor } from '@/lib/trip';
+
+import { currentStop, mapStop, targetFor } from '@/lib/trip';
 import type { Expense, Leg, Reservation, Stop, Trip } from '@/lib/types';
 import { ExpenseSheet } from './ExpenseSheet';
-import { Timeline, TripTile, type ItineraryHandlers } from './Itinerary';
+import { Greeting, NextUp, Ticket, Timeline, type ItineraryHandlers } from './Itinerary';
 import { ReservationSheet, type ReservationPrefill } from './ReservationSheet';
 import { DemoPanel, ShareSheet, WhoAreYou } from './SmallSheets';
 import { ProfileSheet } from './ProfileSheet';
@@ -38,7 +39,6 @@ export function App({ token }: { token: string }) {
   const trip = state.status === 'ready' ? state.trip : null;
   const [me, setMe] = useMe(trip);
   const [tab, setTab] = useState<'trip' | 'split'>('trip');
-  const [expanded, setExpanded] = useState(true);
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [toast, setToast] = useState<{ msg: string; action?: { label: string; run: () => void } } | null>(null);
   const [sim, setSim] = useState<Sim>({ offsetMin: 0, location: 'hotel' });
@@ -69,20 +69,17 @@ export function App({ token }: { token: string }) {
   const notify = useCallback((msg: string, action?: { label: string; run: () => void }) => setToast({ msg, action }), []);
 
   const live = useCallback((r: Reservation): LiveStatus | null => (trip ? liveStatus(r, now, here, targetFor(trip, r)) : null), [trip, now, here]);
-  const urgent = useMemo(() => {
-    if (!trip) return null;
-    const pairs = trip.reservations.map(r => ({ r, s: live(r) }));
-    const s = mostUrgent(pairs.map(p => p.s));
-    return s ? pairs.find(p => p.s === s) as { r: Reservation; s: LiveStatus } : null;
-  }, [trip, live]);
+  const next = useMemo(() => (trip ? nextUp(trip.reservations.map(r => ({ r, s: live(r) }))) : null), [trip, live]);
+  // The temperature in the greeting is for the city you're in today (never your own location).
+  const temp = useTemp(trip ? mapStop(trip, now) : null);
   const needsLocation = !isDemo && !locPref && Boolean(trip?.reservations.some(r => isTracked(r) && live(r)));
 
   if (state.status === 'loading') {
     return (
       <main className="app"><div className="screen">
-        <div className="screen-head"><h1 className="screen-title">Trips</h1></div>
-        <div className="skeleton" style={{ height: 198 }} />
-        <div className="skeleton" style={{ height: 156, marginTop: 70 }} />
+        <div className="skeleton" style={{ height: 78, width: '70%' }} />
+        <div className="skeleton" style={{ height: 104, marginTop: 28 }} />
+        <div className="skeleton" style={{ height: 132, marginTop: 14 }} />
       </div></main>
     );
   }
@@ -157,51 +154,41 @@ export function App({ token }: { token: string }) {
 
         {isDemo && (
           <button className={`demo-chip ${sim.offsetMin ? 'shifted' : ''}`} onClick={() => setSheet({ kind: 'demo' })} aria-label="Demo controls">
-            <Icon name="science" fill />{sim.offsetMin ? `Demo · +${sim.offsetMin} min` : 'Demo'}
+            <Icon name="tune" />{sim.offsetMin ? `Demo · +${sim.offsetMin} min` : 'Demo'}
           </button>
         )}
 
         {tab === 'trip' ? (
           <div className="screen">
-            <div className="screen-head">
-              <h1 className="screen-title">Trips</h1>
-              {!isDemo && <button className="icon-btn-acc" onClick={() => setSheet({ kind: 'trip', initial: null })} aria-label="New trip"><Icon name="add" /></button>}
-            </div>
+            <Greeting g={greeting(trip, now)} name={meT?.name ?? 'traveler'} temp={temp} />
             {state.offline && <div className="offline"><Icon name="cloud_off" />Offline — changes will send when you’re back online</div>}
-            <TripTile trip={trip} now={now} expanded={expanded} onToggle={() => setExpanded(x => !x)} urgent={urgent} />
-            <div style={{ display: 'flex', gap: 8, margin: '10px 0 0', flexWrap: 'wrap' }}>
+            {next && <NextUp r={next.r} s={next.s} onOpen={() => openRes(next.r)} />}
+            <Ticket trip={trip} now={now} />
+            <div className="actions">
               <button className="chip-btn" onClick={() => setSheet({ kind: 'share' })}><Icon name="ios_share" />Share</button>
               <button className="chip-btn" onClick={() => setSheet({ kind: 'trip', initial: trip })}><Icon name="edit" />Edit trip</button>
               <button className="chip-btn" onClick={() => setSheet({ kind: 'profile', firstTime: false })}><Icon name="favorite" />Interests</button>
               {needsLocation && <button className="chip-btn" onClick={() => setLocPref(true)}><Icon name="near_me" className="acc" />Live times</button>}
             </div>
             {!isDemo && locPref && (loc.status === 'denied' || loc.status === 'unavailable') && (
-              <div className="help" style={{ margin: '8px 4px 0' }}>Location is off, so leave-by times use buffers only.</div>
+              <div className="help" style={{ margin: '4px 2px 0' }}>Location is off, so leave-by times use buffers only.</div>
             )}
-            {expanded && (
-              <>
-                <div className="divider"><span>Itinerary</span></div>
-                <Timeline trip={trip} current={current} live={live} h={h} />
-              </>
-            )}
-            <div className="divider" style={{ marginTop: 10 }}><span>{others.length ? 'Your other trips' : 'Start your own'}</span></div>
+            <div className="lbl"><span>The route</span><span>{trip.stops.length} {trip.stops.length === 1 ? 'stop' : 'stops'}</span></div>
+            <Timeline trip={trip} current={current} live={live} h={h} />
+            <div className="lbl" style={{ marginTop: 30 }}><span>{others.length ? 'Your other trips' : 'Start your own'}</span></div>
             {others.map(o => (
               <button key={o.token} className="trip-row" onClick={() => router.push(`/t/${o.token}`)}>
-                <span className="thumb" style={o.token === DEMO_TOKEN ? { background: 'linear-gradient(135deg,#2E6BD6,#6C63FF 52%,#C23B78)' } : undefined} />
                 <span>
-                  <div className="t1">{o.name}{o.token === DEMO_TOKEN ? ' · demo' : ''}</div>
-                  <div className="t2">{o.start && o.end ? `${fmtRange(o.start, o.end).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase())} · ` : ''}{o.stops} stops</div>
+                  <div className="t1">{o.name}</div>
+                  <div className="t2">{o.token === DEMO_TOKEN ? 'Demo · ' : ''}{o.start && o.end ? `${ticketRange(o.start, o.end)} · ` : ''}{o.stops} stops</div>
                 </span>
                 <Icon name="chevron_right" />
               </button>
             ))}
-            {isDemo && (
-              <button className="trip-row" onClick={() => setSheet({ kind: 'trip', initial: null })}>
-                <span className="thumb" />
-                <span><div className="t1">Plan a real trip</div><div className="t2">Add your stops, share the link with your group</div></span>
-                <Icon name="add" />
-              </button>
-            )}
+            <button className="trip-row" onClick={() => setSheet({ kind: 'trip', initial: null })}>
+              <span><div className="t1">{isDemo ? 'Plan a real trip' : 'Plan another trip'}</div><div className="t2">Add your stops · share the link with your group</div></span>
+              <Icon name="add" />
+            </button>
           </div>
         ) : (
           <Split trip={trip} me={meId} rates={rates} onOpen={e => setSheet({ kind: 'exp', initial: e })} onUpdate={saveExp}
@@ -209,12 +196,12 @@ export function App({ token }: { token: string }) {
         )}
 
         <nav className="tabbar" aria-label="Sections">
-          <button className={`tab ${tab === 'trip' ? 'on' : ''}`} onClick={() => setTab('trip')} aria-current={tab === 'trip' ? 'page' : undefined}><Icon name="map" fill={tab === 'trip'} />Trip</button>
+          <button className={`tab ${tab === 'trip' ? 'on' : ''}`} onClick={() => setTab('trip')} aria-current={tab === 'trip' ? 'page' : undefined}>Trip</button>
           <button className="fab" aria-label={tab === 'trip' ? 'New reservation' : 'New expense'}
             onClick={() => (tab === 'trip' ? openRes(null, { stopId: current?.id }) : setSheet({ kind: 'exp', initial: null }))}>
             <Icon name="add" />
           </button>
-          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}><Icon name="receipt_long" fill={tab === 'split'} />Split</button>
+          <button className={`tab ${tab === 'split' ? 'on' : ''}`} onClick={() => setTab('split')} aria-current={tab === 'split' ? 'page' : undefined}>Split</button>
         </nav>
 
         {stopForSheet && (

@@ -8,7 +8,8 @@ import { flag, sortedStops } from '@/lib/trip';
 import type { Currency, Leg, Mode, Place, Stop, Traveler, Trip } from '@/lib/types';
 import { Icon, Sheet, TYPE_ICON } from './ui';
 
-const COLORS = ['var(--acc)', '#2E9E7E', '#B4477E', '#2F82B4', '#D89A3E', '#6C63FF'];
+// Avatar colours: all light enough to carry navy initials on the dark theme.
+const COLORS = ['var(--acc)', '#C9AE7A', '#A9B8FF', '#F2A7C3', '#F4F1E9', '#FFB37A'];
 const MODES: Mode[] = ['flight', 'train', 'ferry', 'bus', 'car'];
 const CURRENCIES: Currency[] = ['EUR', 'INR', 'USD', 'GBP', 'CHF', 'JPY'];
 
@@ -167,7 +168,7 @@ export function TripForm({ initial, onSave, onClose }: { initial: Trip | null; o
             </div>
             <div className="stop-edit">
               <div className="h">
-                <span className="idx mono" style={{ fontSize: 12, color: 'var(--muted-3)', fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</span>
+                <span className="idx mono" style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</span>
                 <span className="n">{s.place?.name ?? 'New stop'}</span>
                 {stops.length > 1 && <button className="close-btn" aria-label="Remove stop" onClick={() => setStops(st => st.filter(x => x.id !== s.id))}><Icon name="close" /></button>}
               </div>

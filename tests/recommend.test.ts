@@ -18,7 +18,8 @@ const body = (over: Record<string, unknown> = {}) => ({
   booked: ['Belvedere · Klimt galleries'], nextStop: 'Gmunden', ...over,
 });
 const req = (b: unknown) => new Request('http://x/api/recommend', { method: 'POST', body: JSON.stringify(b) });
-const item = (name: string, interest = 'Markets') => ({ name, kind: 'food', why: 'Because.', interest, area: 'Neubau', distance: '8 min walk', url: 'https://example.org/' + name });
+const item = (name: string, interest = 'Markets') => ({ name, kind: 'food', why: 'Because.', interest, area: 'Neubau', distance: '8 min walk', url: 'https://example.org/' + name,
+  klook_url: null as string | null, klook_price: null as string | null, official_price: null as string | null });
 const reply = (text: string, stop = 'end_turn') => ({
   content: [{ type: 'server_tool_use', id: 's', name: 'web_search', input: {} }, { type: 'text', text }],
   stop_reason: stop, usage: { input_tokens: 9000, output_tokens: 700, server_tool_use: { web_search_requests: 3 } },
@@ -59,6 +60,22 @@ describe('/api/recommend', () => {
     const json = await (await POST(req(body()))).json();
     expect(json.items).toHaveLength(5);
     expect(json.items[0].url).toBeNull();
+  });
+
+  it('keeps Klook details only for real klook.com listings', async () => {
+    const real = { ...item('Belvedere ticket'), klook_url: 'https://www.klook.com/en-US/activity/12345-belvedere-vienna/?spm=abc&aid=999', klook_price: '€18', official_price: '€24' };
+    const lookalike = { ...item('Fake'), klook_url: 'https://klook.com.evil.example/activity/1', klook_price: '€5', official_price: null };
+    const insecure = { ...item('Plain http'), klook_url: 'http://www.klook.com/activity/2', klook_price: '€5', official_price: null };
+    const oddPrice = { ...item('Odd price'), klook_url: 'https://www.klook.com/activity/3-walk/', klook_price: 'about twenty euros', official_price: '€30' };
+    create.mockResolvedValue(reply(JSON.stringify({ items: [real, lookalike, insecure, oddPrice, item('Café')] })));
+    const { items } = await (await POST(req(body()))).json();
+    expect(items[0].klook).toEqual({ url: 'https://www.klook.com/en-US/activity/12345-belvedere-vienna/', price: '€18', was: '€24' });
+    expect(items[1].klook).toBeNull();
+    expect(items[2].klook).toBeNull();
+    expect(items[3].klook).toEqual({ url: 'https://www.klook.com/activity/3-walk/', price: null, was: null });
+    expect(items[4].klook).toBeNull();
+    expect(items[0]).not.toHaveProperty('klook_url');
+    expect(create.mock.calls[0][0].system[0].text).toContain('Never build, guess or adapt a Klook address or price');
   });
 
   it('fails cleanly on unusable output', async () => {

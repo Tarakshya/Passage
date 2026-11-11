@@ -6,7 +6,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https://tile.openstreetmap.org",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://tile.openstreetmap.org https://photon.komoot.io",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://tile.openstreetmap.org https://photon.komoot.io https://api.open-meteo.com",
   "worker-src 'self'",
   "frame-ancestors 'none'",
 ].join('; ');

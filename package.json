@@ -2,7 +2,7 @@
   "name": "passage",
   "version": "1.0.0",
   "private": true,
-  "description": "Passage \u2014 a shared, live trip planner. Portfolio product by Tarakshya Mehrish.",
+  "description": "Passage — a shared, live trip planner. Portfolio product by Tarakshya Mehrish.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "1.4.0",
     "@fontsource/hanken-grotesk": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
     "@supabase/supabase-js": "2.118.0",
     "next": "16.4.5",
     "react": "19.2.0",

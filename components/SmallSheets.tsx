@@ -81,7 +81,7 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
           <div className="chips">
             {trip.travelers.map(t => (
               <button key={t.id} className={`chip small ${me === t.id ? 'on' : ''}`} onClick={() => setMe(t.id)}>
-                <span className="av" style={{ background: me === t.id ? 'rgba(255,255,255,.3)' : t.color }}>{t.name[0]}</span>{t.name}{t.id === trip.adminId ? ' (admin)' : ''}
+                <span className="av" style={{ background: me === t.id ? undefined : t.color }}>{t.name[0]}</span>{t.name}{t.id === trip.adminId ? ' (admin)' : ''}
               </button>
             ))}
           </div>

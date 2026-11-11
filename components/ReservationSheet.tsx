@@ -303,7 +303,7 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
         <div className="seg" role="radiogroup" aria-label="Status">
           {(['todo', 'pending', 'booked'] as BookingStatus[]).map(s => (
             <button key={s} role="radio" aria-checked={status === s} className={status === s ? 'on' : ''} onClick={() => setStatus(s)}>
-              <span className="d" style={{ background: s === 'todo' ? 'var(--bad)' : s === 'pending' ? 'var(--warn)' : 'var(--ok)' }} />{STATUS_LABEL[s]}
+              <span className="d" style={s === 'todo' ? { boxShadow: 'inset 0 0 0 1.5px var(--gold)' } : { background: s === 'pending' ? 'var(--gold)' : 'var(--lagoon)' }} />{STATUS_LABEL[s]}
             </button>
           ))}
         </div>

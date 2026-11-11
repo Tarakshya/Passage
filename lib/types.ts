@@ -36,6 +36,11 @@ export interface Rec {
   /** Rough distance from where they're staying, e.g. "10 min walk". */
   distance: string;
   url: string | null;
+  /**
+   * Set only when Claude found this exact thing on sale on Klook. `price` is Klook's "from"
+   * price as printed on the listing; `was` is the price at the door or official site, if higher.
+   */
+  klook?: { url: string; price: string | null; was: string | null } | null;
 }
 
 /** Recommendations for one traveler in one city. */

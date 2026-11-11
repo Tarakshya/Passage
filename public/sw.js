@@ -2,7 +2,7 @@
 // Pages: network first, cached copy when offline. Static assets and fonts: cache first.
 // Never cached: /api/* (scans, rates) and Supabase calls — those go to the network or fail.
 
-const VERSION = 'passage-v2';
+const VERSION = 'passage-v3';
 const SHELL = ['/', '/t/demo', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', e => {
