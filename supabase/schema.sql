@@ -50,7 +50,7 @@ alter table ai_usage enable row level security;
 
 -- The trip document holds everything except bookings and expenses, which live in their own rows
 -- so two people adding expenses at once never overwrite each other.
-create or replace function trip_doc(p jsonb) returns jsonb language sql immutable as $$
+create or replace function trip_doc(p jsonb) returns jsonb language sql immutable set search_path = public as $$
   select p - 'id' - 'token' - 'isDemo' - 'reservations' - 'expenses' - 'recs'
 $$;
 
@@ -74,7 +74,7 @@ declare
   r jsonb;
 begin
   if v_token is null or length(v_token) < 32 then raise exception 'bad token'; end if;
-  insert into trips (token, data) values (v_token, trip_doc(p_trip)) returning id into v_id;
+  insert into trips (token, data) values (v_token, trip_doc(p_trip) || jsonb_build_object('recs', coalesce(p_trip->'recs', '{}'::jsonb))) returning id into v_id;
   for r in select * from jsonb_array_elements(coalesce(p_trip->'reservations', '[]'::jsonb)) loop
     insert into reservations (trip_id, id, data) values (v_id, r->>'id', r);
   end loop;
@@ -141,7 +141,12 @@ language plpgsql security definer set search_path = public as $$
 declare v_count int;
 begin
   if p_kind not in ('scan', 'recs') then return false; end if;
-  if p_token <> 'demo' and not exists (select 1 from trips where token = p_token) then return false; end if;
+  -- A trip that is still being created (e.g. filling a stop from a hotel booking in the new-trip
+  -- form) has no row yet. Those share one small daily pool, so made-up tokens can't run up a bill.
+  if p_token <> 'demo' and not exists (select 1 from trips where token = p_token) then
+    p_token := '__new__';
+    p_limit := least(p_limit, 60);
+  end if;
   insert into ai_usage (token, kind, day, count) values (p_token, p_kind, current_date, 1)
     on conflict (token, kind, day) do update set count = ai_usage.count + 1
     returning count into v_count;

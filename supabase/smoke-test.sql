@@ -35,6 +35,6 @@ select apply_mutation(repeat('a',32), '{"kind":"deleteExpense","id":"e-new"}');
 -- 7. quotas
 select bool_and(take_quota(repeat('a',32),'recs',3)) as first_three_ok from generate_series(1,3);
 select take_quota(repeat('a',32),'recs',3) as fourth_refused, take_quota(repeat('a',32),'scan',3) as scan_separate,
-       take_quota('nope','scan',3) as unknown_trip, take_quota(repeat('a',32),'other',3) as bad_kind;
+       take_quota('nope','scan',3) as unknown_trip_uses_new_pool, take_quota(repeat('a',32),'other',3) as bad_kind;
 -- 8. wrong token
 do $$ begin perform apply_mutation('b', '{"kind":"deleteExpense","id":"x"}'); raise exception 'FAIL wrong token'; exception when others then raise notice 'ok: wrong token rejected (%)', sqlerrm; end $$;
