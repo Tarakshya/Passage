@@ -107,7 +107,18 @@ export class SupabaseStore implements TripStore {
       if (!cached) throw new Error('offline');
       return this.outbox(token).reduce(applyMutation, cached);
     }
-    if (!data) return null;
+    if (!data) {
+      // A trip made on this phone before sharing was switched on: upload it once, then load it
+      // from the server like any other. Nothing made earlier is lost.
+      const old = readJSON<{ trip: Trip }>(key(token))?.trip;
+      if (!old || old.token !== token) return null;
+      await this.create(old);
+      const again = await this.db.rpc('get_trip', { p_token: token });
+      if (again.error || !again.data) return old;
+      const moved = parseTrip(again.data);
+      writeJSON(cacheKey(token), moved);
+      return moved;
+    }
     const trip = parseTrip(data);
     writeJSON(cacheKey(token), trip);
     return this.outbox(token).reduce(applyMutation, trip);
