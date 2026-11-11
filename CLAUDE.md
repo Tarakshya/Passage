@@ -9,11 +9,26 @@ Passage is a live portfolio app. Its production link is shared with recruiters, 
    Vercel builds each branch as a **preview** with its own link.
 3. Before handing over a preview, run `npm test`, `npm run typecheck` and `npm run build`; all must pass.
    Check the changed screens at phone width (390 px).
-4. Give T the preview link and a plain-English summary of what changed and what to try.
+4. Also force-push the branch to `review`, so T's fixed review link
+   (https://passage-git-review-tm-d751.vercel.app, and `/start` on it) always shows the newest
+   version, including changes that are waiting for approval. T leaves Vercel toolbar comments
+   there; read them with the Vercel connector (`list_toolbar_threads`, branch `review`) when T
+   says "read my comments", and resolve each one once it is fixed.
+   Give T a plain-English summary of what changed and what to try, and point to the review link.
 5. **Stop and ask explicitly:** "Ready to make this live?" Only an explicit yes (e.g. "ship it", "yes, go live")
    counts. Silence, "looks good", or a request for more changes is not approval.
-6. On approval: merge the branch into `main` and push. Confirm the live link updated, then delete the branch.
+6. On approval: merge the branch into `main` and push. Confirm the live link updated (Vercel
+   connector: latest production deployment READY on the new commit), then delete the branch.
+   If `review` is behind `main` after a release, force-push `main` to `review` (add an empty
+   commit if the SHA is identical, or Vercel skips the build).
 7. If a live release breaks something, revert `main` to the previous commit first, then fix on a branch.
+
+## Links T uses
+
+- Live, sample trip: https://passage-cyan.vercel.app — for recruiters
+- Live, clean start: https://passage-cyan.vercel.app/start — for anyone who wants to use it
+- Review (newest version, T only): https://passage-git-review-tm-d751.vercel.app
+- Vercel team id: team_mqpPGKUCSfNhBDzhQZwqUJDr, project: passage
 
 ## Orientation
 
