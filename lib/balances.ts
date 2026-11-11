@@ -86,3 +86,47 @@ export function parseMoney(input: string, currency: Currency): number | null {
   if (!clean || !Number.isFinite(n) || n <= 0) return null;
   return Math.round(n * 10 ** CURRENCY_DECIMALS[currency]);
 }
+
+/**
+ * Recording a settle-up payment: the debtor "pays" the creditor's share of a one-person expense,
+ * which cancels exactly that debt in netBalances. Amount is in the base currency.
+ */
+export function settlementExpense(t: Transfer, base: Currency, names: { from: string; to: string }, id: string, now: Date = new Date()): Expense {
+  return {
+    id,
+    title: `${names.from} paid ${names.to} back`,
+    amount: t.amount,
+    currency: base,
+    payerId: t.from,
+    splitWith: [t.to],
+    date: now.toISOString().slice(0, 10),
+    category: 'other',
+    autoScanned: false,
+    pendingAmount: null,
+    pendingBy: null,
+    createdAt: now.toISOString(),
+  };
+}
+
+/**
+ * How many separate debts there would be without simplifying: every pair of people who owe each
+ * other something on the raw expenses (after netting A↔B against B↔A). Shown next to the
+ * simplified number so the saving is visible.
+ */
+export function rawDebtCount(expenses: Expense[], travelers: Traveler[], base: Currency, rates: Rates): number {
+  const ids = new Set(travelers.map(t => t.id));
+  const pair = new Map<string, number>(); // "a|b" with a < b: positive = b owes a
+  for (const e of expenses) {
+    const people = e.splitWith.filter(id => ids.has(id));
+    if (!people.length || !ids.has(e.payerId)) continue;
+    const total = convert(e.amount, e.currency, base, rates);
+    splitEvenly(total, people.length).forEach((share, i) => {
+      const debtor = people[i];
+      if (debtor === e.payerId) return;
+      const [a, b] = [e.payerId, debtor].sort();
+      const k = `${a}|${b}`;
+      pair.set(k, (pair.get(k) ?? 0) + (a === e.payerId ? share : -share));
+    });
+  }
+  return [...pair.values()].filter(v => v !== 0).length;
+}

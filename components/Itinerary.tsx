@@ -94,20 +94,16 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
   );
 }
 
-function bookingText(b: Reservation) {
-  return <><Icon name={TYPE_ICON[b.type]} /> <b>{fmtTime(b.startLocal)}</b> {b.service ?? b.route ?? b.title}</>;
-}
-
 function LegLines({ trip, leg, bookings, live, h, skip }: { trip: Trip; leg: Leg; bookings: Reservation[]; live: LiveFn; h: ItineraryHandlers; skip?: string }) {
   const real = bookings.filter(b => b.status !== 'todo');
   if (!real.length) {
     const klook = klookForLeg(trip, leg);
     return (
-      <div className="legline todo">
-        <span className="dash" />
-        <button className="tx" onClick={() => h.addToLeg(leg)} aria-label={`Add the ${TYPE_LABEL[leg.mode].toLowerCase()} for ${legLabel(trip, leg)}`}>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name={TYPE_ICON[leg.mode]} /> {TYPE_LABEL[leg.mode]} to {placeName(trip, leg.to)}</span>
-          <span className="st todo">To book</span>
+      <div className="legline transport todo">
+        <button className="leg-btn" onClick={() => h.addToLeg(leg)} aria-label={`Add the ${TYPE_LABEL[leg.mode].toLowerCase()} for ${legLabel(trip, leg)}`}>
+          <span className="mode"><Icon name={TYPE_ICON[leg.mode]} /></span>
+          <span className="tx"><b>{TYPE_LABEL[leg.mode]} to {placeName(trip, leg.to)}</b><small>From {placeName(trip, leg.from)} · not booked yet</small></span>
+          <span className="st todo">To book +</span>
         </button>
         {klook && <a className="kpill" href={withAid(klook)} target="_blank" rel="noopener noreferrer">Klook <Icon name="arrow_outward" /></a>}
       </div>
@@ -115,12 +111,17 @@ function LegLines({ trip, leg, bookings, live, h, skip }: { trip: Trip; leg: Leg
   }
   return (
     <>
-      {real.map(b => {
+      {real.map((b, i) => {
         const s = b.id === skip ? null : live(b);
+        // A leg can take several bookings (train, then flight): the earlier ones end where their route says.
+        const dest = i < real.length - 1 && b.route?.includes('→') ? b.route.split('→').at(-1)!.trim() : placeName(trip, leg.to);
         return (
-          <button key={b.id} className={`legline ${s?.state ?? ''}`} onClick={() => h.openReservation(b)}>
-            <span className="dash" />
-            <span className="tx">{bookingText(b)}</span>
+          <button key={b.id} className={`legline transport ${s?.state ?? ''}`} onClick={() => h.openReservation(b)}>
+            <span className="mode"><Icon name={TYPE_ICON[b.type]} /></span>
+            <span className="tx">
+              <b>{TYPE_LABEL[b.type]} to {dest}</b>
+              <small>{[fmtTime(b.startLocal), b.service, b.status === 'booked' ? null : 'awaiting confirmation'].filter(Boolean).join(' · ')}</small>
+            </span>
             <span className={`st ${b.status === 'booked' ? '' : 'pend'}`}>{b.status === 'booked' ? <><Icon name="check" />Booked</> : 'Pending'}</span>
             {s && <LiveLine s={s} r={b} onRebook={() => h.openReservation(b)} />}
           </button>
