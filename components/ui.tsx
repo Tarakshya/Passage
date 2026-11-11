@@ -12,7 +12,7 @@ export const TYPE_LABEL: Record<ReservationType, string> = {
   hotel: 'Hotel', flight: 'Flight', train: 'Train', ferry: 'Ferry', bus: 'Bus', car: 'Car',
   activity: 'Activity', dinner: 'Dinner',
 };
-export const STATUS_LABEL: Record<BookingStatus, string> = { todo: 'To do', pending: 'Pending', booked: 'Booked' };
+export const STATUS_LABEL: Record<BookingStatus, string> = { todo: 'To book', pending: 'Pending', booked: 'Booked' };
 
 /** Material Symbols Rounded as inline SVG, sized by font-size like the icon font it replaces. */
 export function Icon({ name, fill, className = '', size }: { name: string; fill?: boolean; className?: string; size?: number }) {

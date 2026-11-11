@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
-import { fmtMoney, netBalances, settleUp, totalsByCurrency } from '@/lib/balances';
+import { useMemo, useState } from 'react';
+import { fmtMoney, netBalances, rawDebtCount, settlementExpense, settleUp, totalsByCurrency } from '@/lib/balances';
 import type { RatesState } from '@/lib/hooks';
-import { approveEdit, rejectEdit } from '@/lib/mutations';
+import { approveEdit, newId, rejectEdit } from '@/lib/mutations';
 import { fmtDay } from '@/lib/time';
 import type { Expense, Trip } from '@/lib/types';
 import { Avatar, Icon } from './ui';
@@ -17,17 +17,21 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
 }) {
   const name = (id: string) => (id === me ? 'You' : trip.travelers.find(t => t.id === id)?.name ?? 'Someone');
   const base = trip.baseCurrency;
-  const { net, transfers, error } = useMemo(() => {
+  const { net, transfers, raw, error } = useMemo(() => {
     try {
       const n = netBalances(trip.expenses, trip.travelers, base, rates.rates);
-      return { net: n, transfers: settleUp(n), error: null };
+      return { net: n, transfers: settleUp(n), raw: rawDebtCount(trip.expenses, trip.travelers, base, rates.rates), error: null };
     } catch (e) {
-      return { net: new Map<string, number>(), transfers: [], error: (e as Error).message };
+      return { net: new Map<string, number>(), transfers: [], raw: 0, error: (e as Error).message };
     }
   }, [trip.expenses, trip.travelers, base, rates.rates]);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const plainName = (id: string) => trip.travelers.find(t => t.id === id)?.name ?? 'Someone';
+  const markPaid = (t: { from: string; to: string; amount: number }) => {
+    onUpdate(settlementExpense(t, base, { from: plainName(t.from), to: plainName(t.to) }, newId('e')));
+    setConfirming(null);
+  };
   const mine = net.get(me) ?? 0;
-  const myTransfers = transfers.filter(t => t.from === me || t.to === me);
-  const others = transfers.filter(t => t.from !== me && t.to !== me);
   const totals = totalsByCurrency(trip.expenses, base);
   const isAdmin = me === trip.adminId;
   const pending = trip.expenses.filter(e => e.pendingAmount != null);
@@ -51,30 +55,40 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
         <section className="balances" aria-label="Balances">
           <div className="k">{mine > 0 ? 'You’re owed overall' : mine < 0 ? 'You owe overall' : 'You’re all square'}</div>
           <div className={`big ${mine < 0 ? 'neg' : mine === 0 ? 'zero' : ''}`}>{fmtMoney(mine, base, { sign: true })}</div>
-          {myTransfers.map(t => {
-            const other = t.from === me ? t.to : t.from;
-            const ot = trip.travelers.find(x => x.id === other)!;
-            return (
-              <div className="p" key={`${t.from}-${t.to}`}>
-                <Avatar t={ot} small />
-                <span>{t.from === me ? `You owe ${ot.name}` : `${ot.name} owes you`}</span>
-                <span className={`amt ${t.from === me ? 'neg' : ''}`}>{fmtMoney(t.amount, base)}</span>
-              </div>
-            );
-          })}
-          {others.map(t => (
-            <div className="p" key={`${t.from}-${t.to}`}>
-              <Avatar t={trip.travelers.find(x => x.id === t.from)!} small />
-              <span>{name(t.from)} owes {name(t.to)}</span>
-              <span className="amt plain">{fmtMoney(t.amount, base)}</span>
-            </div>
-          ))}
           {error && <div className="fx">Can’t convert every currency right now.</div>}
           {foreign && !error && (
             <div className="fx">
               In {base} · {rates.estimate ? 'estimated rates (offline)' : `ECB rates of ${rates.date}`}
             </div>
           )}
+        </section>
+      )}
+
+      {transfers.length > 0 && (
+        <section className="settle" aria-label="Settle up">
+          <div className="section-h">
+            <h3>Settle up</h3>
+            <span className="tag">Simplified · {transfers.length} {transfers.length === 1 ? 'payment' : 'payments'}</span>
+          </div>
+          <p className="help settle-why">
+            The fewest payments that clear every debt in the group{raw > transfers.length ? `, instead of ${raw} separate ones` : ''}.
+          </p>
+          {transfers.map(t => {
+            const k = `${t.from}-${t.to}`;
+            const from = trip.travelers.find(x => x.id === t.from)!;
+            return (
+              <div className="settle-row" key={k}>
+                <Avatar t={from} small />
+                <span className="settle-who"><b>{name(t.from)}</b> {t.from === me ? 'pay' : 'pays'} <b>{name(t.to)}</b></span>
+                <span className="amt">{fmtMoney(t.amount, base)}</span>
+                {confirming === k ? (
+                  <button className="paid sure" onClick={() => markPaid(t)}>Confirm</button>
+                ) : (
+                  <button className="paid" onClick={() => setConfirming(k)} aria-label={`Mark ${fmtMoney(t.amount, base)} from ${plainName(t.from)} to ${plainName(t.to)} as paid`}>Paid</button>
+                )}
+              </div>
+            );
+          })}
         </section>
       )}
 

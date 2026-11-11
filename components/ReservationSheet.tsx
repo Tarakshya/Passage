@@ -7,7 +7,8 @@ import { newId } from '@/lib/mutations';
 import { prepareFile, scan, scanContext } from '@/lib/scan-client';
 import type { BookingScan } from '@/lib/schema';
 import { todayIn } from '@/lib/time';
-import { flag, legLabel, sortedStops, targetFor } from '@/lib/trip';
+import { placeCode } from '@/lib/home';
+import { flag, legLabel, placeName, sortedStops, targetFor } from '@/lib/trip';
 import type { BookingStatus, Currency, Reservation, ReservationType, Trip } from '@/lib/types';
 import { CURRENCY_DECIMALS, TRANSIT_TYPES } from '@/lib/types';
 import { Icon, Sheet, STATUS_LABEL, TYPE_ICON, TYPE_LABEL } from './ui';
@@ -59,7 +60,8 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
   const [price, setPrice] = useState(initial?.price != null && initial.currency ? (initial.price / 10 ** CURRENCY_DECIMALS[initial.currency]).toFixed(CURRENCY_DECIMALS[initial.currency]) : '');
   const [currency, setCurrency] = useState<Currency>(initial?.currency ?? trip.baseCurrency);
   const [cancelBy, setCancelBy] = useState(initial?.cancelBy ?? '');
-  const [status, setStatus] = useState<BookingStatus>(initial?.status ?? 'booked');
+  // A new booking typed in by hand starts as "To book"; a scanned confirmation is marked booked.
+  const [status, setStatus] = useState<BookingStatus>(initial?.status ?? 'todo');
   const [scannedTz, setScannedTz] = useState<{ start?: string; end?: string }>({});
   const [source, setSource] = useState<'manual' | 'scan'>(initial?.source ?? 'manual');
   const [low, setLow] = useState<Set<Field>>(new Set());
@@ -184,6 +186,18 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
   const clearLow = (f: Field) => low.has(f) && setLow(s => { const n = new Set(s); n.delete(f); return n; });
   const err = (k: keyof typeof errors) => tried && errors[k] ? <div className="help warn">{errors[k]}</div> : low.has(k as Field) ? <div className="help warn">Check this — Claude wasn’t sure</div> : null;
 
+  // Hints use this trip's own places, so the ghost text matches what you're adding.
+  const legFrom = leg ? placeName(trip, leg.from) : 'From';
+  const legTo = leg ? placeName(trip, leg.to) : 'To';
+  const hint = {
+    title: type === 'hotel' ? 'Hotel name' : transit ? `${legFrom} → ${legTo}` : type === 'dinner' ? 'Restaurant' : 'What are you doing?',
+    route: type === 'flight' ? `Airports, e.g. ${placeCode(legFrom)} → ${placeCode(legTo)}` : type === 'car' ? `Pick-up → drop-off` : `${type === 'train' ? 'Stations' : type === 'ferry' ? 'Ports' : 'Stops'}, e.g. ${legFrom} → ${legTo}`,
+    service: ({ flight: 'Flight number, e.g. KL 878', train: 'Train number, e.g. IC 548', ferry: 'Ferry line or number', bus: 'Bus line or number', car: 'Rental company' } as Record<string, string>)[type] ?? '',
+    address: ({ flight: 'Departure airport', train: 'Departure station', ferry: 'Departure port', bus: 'Departure stop', car: 'Pick-up address', hotel: 'Hotel address', dinner: 'Restaurant address', activity: 'Address' } as Record<string, string>)[type],
+    seat: ({ flight: 'Seats, e.g. 32A, 32B', train: 'Coach and seats', ferry: 'Cabin or seats', bus: 'Seats', car: 'Car type', hotel: 'Room type', dinner: 'Table, e.g. for 3', activity: 'Tickets, e.g. 3 adults' } as Record<string, string>)[type],
+  };
+  const seatIcon = type === 'hotel' ? 'bed' : type === 'activity' || type === 'dinner' ? 'confirmation_number' : 'event_seat';
+
   const startLabel = type === 'hotel' ? 'Check-in' : transit ? 'Departs' : 'Starts';
   const endLabel = type === 'hotel' ? 'Check-out' : transit ? 'Arrives' : 'Ends';
 
@@ -241,13 +255,13 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
           )}
           <Icon name="unfold_more" />
         </div>
-        {err('target') ?? <div className="help">{transit ? 'Stays and activities file under a stop instead' : `Transit types file under a “${stop?.name ?? 'Vienna'} → next stop” leg instead`}</div>}
+        {err('target') ?? <div className="help">{transit ? 'Stays, activities and dinners go under a city instead' : `Flights, trains and other transport go under the journey between two stops`}</div>}
       </div>
 
       <div className="field">
         <label className="label" htmlFor="res-title">Name</label>
         <input id="res-title" className={`input ${lowCls('title')}`} value={title} onChange={e => { setTitle(e.target.value); clearLow('title'); }}
-          placeholder={type === 'hotel' ? 'Hotel name' : transit ? 'Vienna → Gmunden' : type === 'dinner' ? 'Restaurant' : 'What are you doing?'} autoComplete="off" />
+          placeholder={hint.title} autoComplete="off" />
         {err('title')}
       </div>
 
@@ -273,13 +287,13 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
         <div style={{ display: 'grid', gap: 10 }}>
           {transit && (
             <>
-              <div className="icon-input"><Icon name="route" /><input className={`input ${lowCls('route')}`} value={route} onChange={e => { setRoute(e.target.value); clearLow('route'); }} placeholder="Wien Hbf → Attnang-Puchheim" aria-label="Route" /></div>
-              <div className="icon-input"><Icon name="tag" /><input className={`input mono ${lowCls('service')}`} value={service} onChange={e => { setService(e.target.value); clearLow('service'); }} placeholder="Train or flight number" aria-label="Service number" /></div>
+              <div className="icon-input"><Icon name="route" /><input className={`input ${lowCls('route')}`} value={route} onChange={e => { setRoute(e.target.value); clearLow('route'); }} placeholder={hint.route} aria-label="Route" /></div>
+              <div className="icon-input"><Icon name="tag" /><input className={`input mono ${lowCls('service')}`} value={service} onChange={e => { setService(e.target.value); clearLow('service'); }} placeholder={hint.service} aria-label={hint.service.split(',')[0]} /></div>
             </>
           )}
-          <div className="icon-input"><Icon name="location_on" /><input className={`input ${lowCls('address')}`} value={address} onChange={e => { setAddress(e.target.value); clearLow('address'); }} placeholder={transit ? 'Station or airport' : 'Address'} aria-label="Address" /></div>
-          <div className="icon-input"><Icon name="bed" /><input className={`input ${lowCls('seat')}`} value={seat} onChange={e => { setSeat(e.target.value); clearLow('seat'); }} placeholder="Room / seat" aria-label="Room or seat" /></div>
-          <div className="icon-input"><Icon name="confirmation_number" /><input className={`input mono ${lowCls('confirmation')}`} value={confirmation} onChange={e => { setConfirmation(e.target.value); clearLow('confirmation'); }} placeholder="Confirmation number" aria-label="Confirmation number" autoCapitalize="characters" /></div>
+          <div className="icon-input"><Icon name="location_on" /><input className={`input ${lowCls('address')}`} value={address} onChange={e => { setAddress(e.target.value); clearLow('address'); }} placeholder={hint.address} aria-label={hint.address} /></div>
+          <div className="icon-input"><Icon name={seatIcon} /><input className={`input ${lowCls('seat')}`} value={seat} onChange={e => { setSeat(e.target.value); clearLow('seat'); }} placeholder={hint.seat} aria-label={hint.seat.split(',')[0]} /></div>
+          <div className="icon-input"><Icon name="confirmation_number" /><input className={`input mono ${lowCls('confirmation')}`} value={confirmation} onChange={e => { setConfirmation(e.target.value); clearLow('confirmation'); }} placeholder={type === 'flight' ? 'Booking reference (PNR)' : 'Confirmation number'} aria-label="Confirmation number" autoCapitalize="characters" /></div>
           <div className="row3">
             <div className="icon-input"><Icon name="payments" /><input className={`input mono ${lowCls('price')}`} value={price} onChange={e => { setPrice(e.target.value); clearLow('price'); }} placeholder="Price" inputMode="decimal" aria-label="Price" /></div>
             <div className="select-wrap">
