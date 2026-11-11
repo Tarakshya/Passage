@@ -104,7 +104,7 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
           )}
           {set && !busy && (
             <p className="credit">
-              {researched(set.generatedAt)} from the web by Claude. Check before you go.
+              {researched(set.generatedAt)} from the web by Passage. Check before you go.
               {hasKlook && <><br />Klook prices as seen that day; they change.</>}
             </p>
           )}

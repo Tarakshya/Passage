@@ -100,7 +100,7 @@ export function ProfileSheet({ traveler, firstTime, onSave, onClose }: {
         </div>
         {linkValue === 'invalid'
           ? <div className="help warn">That doesn’t look like a web address.</div>
-          : <div className="help">Claude reads it once to get a feel for your taste. You can change it anytime.</div>}
+          : <div className="help">Passage reads it once to get a feel for your taste. You can change it anytime.</div>}
       </div>
     </Sheet>
   );

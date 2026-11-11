@@ -11,6 +11,7 @@ import { nextUp } from '@/lib/home';
 import { isTracked, liveStatus, type LiveStatus } from '@/lib/live-status';
 
 import { currentStop, targetFor } from '@/lib/trip';
+import type { ReceiptScan } from '@/lib/schema';
 import type { Expense, Leg, Reservation, Stop, Trip } from '@/lib/types';
 import { ExpenseSheet } from './ExpenseSheet';
 import { NextUp, Ticket, Timeline, type ItineraryHandlers } from './Itinerary';
@@ -26,7 +27,7 @@ import { Icon } from './ui';
 type SheetState =
   | { kind: 'stop'; stopId: string }
   | { kind: 'res'; initial: Reservation | null; prefill: ReservationPrefill }
-  | { kind: 'exp'; initial: Expense | null }
+  | { kind: 'exp'; initial: Expense | null; preScanned?: { result: ReceiptScan; ms: number } }
   | { kind: 'trip'; initial: Trip | null }
   | { kind: 'share' }
   | { kind: 'menu' }
@@ -187,10 +188,13 @@ export function App({ token }: { token: string }) {
             onAdd={() => openRes(null, { stopId: stopForSheet.id, type: trip.reservations.some(r => r.stopId === stopForSheet.id && r.type === 'hotel') ? 'activity' : 'hotel' })} />
         )}
         {sheet?.kind === 'res' && (
-          <ReservationSheet trip={trip} initial={sheet.initial} prefill={sheet.prefill} onSave={saveRes} onDelete={deleteRes} onClose={() => setSheet(null)} />
+          <ReservationSheet trip={trip} initial={sheet.initial} prefill={sheet.prefill} onSave={saveRes} onDelete={deleteRes} onClose={() => setSheet(null)}
+            onReceipt={sheet.initial ? undefined : (result, ms) => { setSheet({ kind: 'exp', initial: null, preScanned: { result, ms } }); notify('That’s a receipt, so it goes in the Ledger'); }} />
         )}
         {sheet?.kind === 'exp' && (
-          <ExpenseSheet trip={trip} me={meId} initial={sheet.initial} onSave={saveExp} onDelete={deleteExp} onClose={() => setSheet(null)} notify={notify} />
+          <ExpenseSheet trip={trip} me={meId} initial={sheet.initial} onSave={saveExp} onDelete={deleteExp} onClose={() => setSheet(null)} notify={notify}
+            preScanned={sheet.preScanned}
+            onBooking={sheet.initial ? undefined : (result, ms) => { setSheet({ kind: 'res', initial: null, prefill: { scanned: { result, ms } } }); notify('That’s a booking, so it goes on the trip'); }} />
         )}
         {sheet?.kind === 'trip' && <TripForm initial={sheet.initial} onSave={saveTrip} onClose={() => setSheet(null)} />}
         {sheet?.kind === 'menu' && (

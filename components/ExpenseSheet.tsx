@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtMoney, parseMoney } from '@/lib/balances';
 import { editExpense, newId } from '@/lib/mutations';
 import { prepareFile, scan, scanContext } from '@/lib/scan-client';
 import { todayIn } from '@/lib/time';
 import { sortedStops } from '@/lib/trip';
+import type { BookingScan, ReceiptScan } from '@/lib/schema';
 import type { Currency, Expense, Trip } from '@/lib/types';
 import { CURRENCY_DECIMALS } from '@/lib/types';
 import { Icon, Sheet } from './ui';
@@ -20,9 +21,13 @@ const CATS: { id: Expense['category']; label: string; icon: string }[] = [
   { id: 'other', label: 'Other', icon: 'receipt_long' },
 ];
 
-export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, notify }: {
+export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, notify, preScanned, onBooking }: {
   trip: Trip; me: string; initial: Expense | null;
   onSave: (e: Expense) => void; onDelete: (id: string) => void; onClose: () => void; notify: (msg: string) => void;
+  /** A receipt already read elsewhere (e.g. uploaded with the trip's +): fill the form from it. */
+  preScanned?: { result: ReceiptScan; ms: number };
+  /** The upload turned out to be a booking confirmation: hand it to the booking form. */
+  onBooking?: (r: BookingScan, ms: number) => void;
 }) {
   const tz = sortedStops(trip)[0]?.tz ?? trip.home.tz;
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -43,10 +48,27 @@ export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, not
     setScanState({ kind: 'busy' });
     try {
       const media = await prepareFile(file);
-      const res = await scan('receipt', trip.token, media, scanContext(trip, todayIn(tz)));
+      const ctx = scanContext(trip, todayIn(tz));
+      const res = await scan('receipt', trip.token, media, ctx);
       if (!res.ok) { setScanState({ kind: 'error', message: res.message }); return; }
       const r = res.result;
-      if (!r.isReceipt) { setScanState({ kind: 'error', message: r.reason ?? "That doesn't look like a receipt." }); return; }
+      if (!r.isReceipt) {
+        // Not a receipt: it may be a booking confirmation, which belongs on the trip.
+        if (onBooking) {
+          const rb = await scan('booking', trip.token, media, ctx);
+          if (rb.ok && rb.result.isBooking) { onBooking(rb.result, rb.ms); return; }
+        }
+        setScanState({ kind: 'error', message: r.reason ?? "That doesn't look like a receipt or a booking." });
+        return;
+      }
+      applyScan(r, res.ms);
+    } catch (e) {
+      setScanState({ kind: 'error', message: (e as Error).message });
+    }
+  }
+
+  function applyScan(r: ReceiptScan, ms: number) {
+    {
       if (r.merchant.value) setTitle(r.merchant.value);
       if (r.currency.value) setCurrency(r.currency.value);
       if (r.total.value != null) setAmount(String(r.total.value));
@@ -54,11 +76,14 @@ export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, not
       if (r.category.value) setCategory(r.category.value);
       setScanned(true);
       const low = [r.merchant, r.total, r.currency, r.date].some(f => f.confidence === 'low');
-      setScanState({ kind: 'done', ms: res.ms, low });
-    } catch (e) {
-      setScanState({ kind: 'error', message: (e as Error).message });
+      setScanState({ kind: 'done', ms, low });
     }
   }
+  const started = useRef(false);
+  useEffect(() => {
+    if (preScanned && !started.current) { started.current = true; applyScan(preScanned.result, preScanned.ms); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const minor = parseMoney(amount, currency);
   const errors = {
@@ -101,8 +126,8 @@ export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, not
           <button className={`autofill ${scanState.kind === 'busy' ? 'busy' : ''}`} onClick={() => fileRef.current?.click()} disabled={scanState.kind === 'busy'}>
             <span className="ic"><Icon name={scanState.kind === 'busy' ? 'progress_activity' : 'document_scanner'} /></span>
             <span>
-              <div className="a1">{scanState.kind === 'busy' ? 'Reading the receipt…' : 'Scan a receipt'}</div>
-              <div className="a2">Snap the bill — we’ll fill in the total</div>
+              <div className="a1">{scanState.kind === 'busy' ? 'Reading it…' : 'Scan a receipt'}</div>
+              <div className="a2">A photo or PDF of the bill. Booking confirmations work here too.</div>
             </span>
           </button>
           {scanState.kind === 'done' && (
@@ -119,7 +144,7 @@ export function ExpenseSheet({ trip, me, initial, onSave, onDelete, onClose, not
       {locked && (
         <div className="scan-note warn" style={{ marginTop: 4 }}>
           <Icon name="gavel" fill />
-          <span>Claude scanned this bill, so a new amount goes to {trip.travelers.find(t => t.id === trip.adminId)?.name} to approve.</span>
+          <span>Passage scanned this bill, so a new amount goes to {trip.travelers.find(t => t.id === trip.adminId)?.name} to approve.</span>
         </div>
       )}
 
