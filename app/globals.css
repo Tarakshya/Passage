@@ -568,3 +568,16 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .settle-row .amt { font-family: var(--serif); font-size: 21px; color: var(--cream); }
 .settle-row .paid { min-height: 36px; padding: 0 14px; border-radius: 100px; border: 1px solid var(--lagoon); color: var(--lagoon); font-size: 13px; font-weight: 500; }
 .settle-row .paid.sure { background: var(--lagoon); color: var(--navy-ink); }
+
+/* Boarding pass as a tap target (replaces the arrow button) */
+.ticket.tappable { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform .12s ease; }
+.ticket.tappable:active { transform: scale(.985); }
+.ticket.tappable:focus-visible { outline: 2px solid var(--lagoon); outline-offset: 3px; }
+.tk-tap { margin-top: 10px; font-size: 8.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(21, 32, 53, .7); text-align: center; }
+
+/* Ledger: trip spend summary */
+.spend { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); padding: 12px 0 4px; }
+.spend > div + div { border-left: 1px solid var(--line); padding-left: 12px; }
+.spend .k { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.spend .v { font-size: 16px; font-weight: 500; margin-top: 5px; color: var(--cream); font-variant-numeric: tabular-nums; }
+.spend .s { font-size: 11px; color: var(--faint); margin-top: 2px; }

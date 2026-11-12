@@ -130,3 +130,34 @@ export function rawDebtCount(expenses: Expense[], travelers: Traveler[], base: C
   }
   return [...pair.values()].filter(v => v !== 0).length;
 }
+
+/** A settle-up payment recorded with settlementExpense: money moving between people, not trip spend. */
+export function isSettlement(e: Expense): boolean {
+  return e.category === 'other' && e.splitWith.length === 1 && e.splitWith[0] !== e.payerId && / paid .+ back$/.test(e.title);
+}
+
+export interface Spend {
+  /** Everything the group spent, in the base currency (settle-up payments left out). */
+  total: number;
+  /** This person's portion of that spend. */
+  share: number;
+  /** What this person actually paid for (settle-up payments left out). */
+  paid: number;
+}
+
+/** The trip's spend in one currency, and one person's part in it. */
+export function spendSummary(expenses: Expense[], travelers: Traveler[], me: string, base: Currency, rates: Rates): Spend {
+  const ids = new Set(travelers.map(t => t.id));
+  const out: Spend = { total: 0, share: 0, paid: 0 };
+  for (const e of expenses) {
+    if (isSettlement(e)) continue;
+    const people = e.splitWith.filter(id => ids.has(id));
+    if (!people.length || !ids.has(e.payerId)) continue;
+    const total = convert(e.amount, e.currency, base, rates);
+    out.total += total;
+    if (e.payerId === me) out.paid += total;
+    const i = people.indexOf(me);
+    if (i >= 0) out.share += splitEvenly(total, people.length)[i];
+  }
+  return out;
+}
