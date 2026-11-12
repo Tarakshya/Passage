@@ -71,7 +71,10 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
   const current = currentStop(trip, now);
   const left = prog.total - prog.booked;
   return (
-    <section className="ticket" aria-label={`${trip.name} trip`}>
+    // The whole boarding pass is the switch: tap it to open the itinerary, tap again to fold it.
+    <section className={`ticket tappable ${expanded ? 'open' : ''}`} role="button" tabIndex={0} aria-expanded={expanded}
+      aria-label={`${trip.name} trip. ${expanded ? 'Tap to fold the itinerary' : 'Tap to open the itinerary'}`}
+      onClick={onToggle} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}>
       <div className="main">
         {city && <div className="tk-map"><MapView center={{ lat: city.lat, lng: city.lng }} zoom={12} tint={false} /></div>}
         <div className="tk-status">{tripCountdown(trip, now)}{city && current ? ` · ${city.name}` : ''}</div>
@@ -86,9 +89,7 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
         <small>Booked</small>
         <div className="big">{prog.booked}/{prog.total}</div>
         <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
-        <button className="fold" onClick={onToggle} aria-expanded={expanded} aria-label={expanded ? 'Collapse itinerary' : 'Expand itinerary'}>
-          <Icon name={expanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'} />
-        </button>
+        <div className="tk-tap" aria-hidden="true">{expanded ? 'Tap to fold' : 'Tap to open'}</div>
       </div>
     </section>
   );

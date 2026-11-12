@@ -43,7 +43,7 @@ export function App({ token }: { token: string }) {
   const trip = state.status === 'ready' ? state.trip : null;
   const [me, setMe] = useMe(trip);
   const [tab, setTab] = useState<'trip' | 'split'>('trip');
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false); // the itinerary opens when you tap the boarding pass
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [toast, setToast] = useState<{ msg: string; action?: { label: string; run: () => void } } | null>(null);
   const [sim, setSim] = useState<Sim>({ offsetMin: 0, location: 'hotel' });

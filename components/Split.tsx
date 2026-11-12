@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { fmtMoney, netBalances, rawDebtCount, settlementExpense, settleUp, totalsByCurrency } from '@/lib/balances';
+import { fmtMoney, netBalances, rawDebtCount, settlementExpense, settleUp, spendSummary, totalsByCurrency } from '@/lib/balances';
 import type { RatesState } from '@/lib/hooks';
 import { approveEdit, newId, rejectEdit } from '@/lib/mutations';
 import { fmtDay } from '@/lib/time';
@@ -17,14 +17,14 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
 }) {
   const name = (id: string) => (id === me ? 'You' : trip.travelers.find(t => t.id === id)?.name ?? 'Someone');
   const base = trip.baseCurrency;
-  const { net, transfers, raw, error } = useMemo(() => {
+  const { net, transfers, raw, spend, error } = useMemo(() => {
     try {
       const n = netBalances(trip.expenses, trip.travelers, base, rates.rates);
-      return { net: n, transfers: settleUp(n), raw: rawDebtCount(trip.expenses, trip.travelers, base, rates.rates), error: null };
+      return { net: n, transfers: settleUp(n), raw: rawDebtCount(trip.expenses, trip.travelers, base, rates.rates), spend: spendSummary(trip.expenses, trip.travelers, me, base, rates.rates), error: null };
     } catch (e) {
-      return { net: new Map<string, number>(), transfers: [], raw: 0, error: (e as Error).message };
+      return { net: new Map<string, number>(), transfers: [], raw: 0, spend: null, error: (e as Error).message };
     }
-  }, [trip.expenses, trip.travelers, base, rates.rates]);
+  }, [trip.expenses, trip.travelers, base, rates.rates, me]);
   const [confirming, setConfirming] = useState<string | null>(null);
   const plainName = (id: string) => trip.travelers.find(t => t.id === id)?.name ?? 'Someone';
   const markPaid = (t: { from: string; to: string; amount: number }) => {
@@ -38,6 +38,7 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
   const sorted = [...trip.expenses].sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
   const foreign = trip.expenses.some(e => e.currency !== base);
   const meT = trip.travelers.find(t => t.id === me);
+  const foreignNote = totals.filter(([c]) => c !== base).map(([c, v]) => fmtMoney(v, c)).join(' + ');
 
   return (
     <div className="screen">
@@ -55,10 +56,18 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
         <section className="balances" aria-label="Balances">
           <div className="k">{mine > 0 ? 'You’re owed overall' : mine < 0 ? 'You owe overall' : 'You’re all square'}</div>
           <div className={`big ${mine < 0 ? 'neg' : mine === 0 ? 'zero' : ''}`}>{fmtMoney(mine, base, { sign: true })}</div>
-          {error && <div className="fx">Can’t convert every currency right now.</div>}
+          {/* The trip's spend, then your part of it. What you're owed = what you paid − your share. */}
+          {spend && (
+            <div className="spend" aria-label="Trip spend">
+              <div><div className="k">Trip total</div><div className="v">{fmtMoney(spend.total, base)}</div><div className="s">everyone</div></div>
+              <div><div className="k">Your share</div><div className="v">{fmtMoney(spend.share, base)}</div><div className="s">what you used</div></div>
+              <div><div className="k">You paid</div><div className="v">{fmtMoney(spend.paid, base)}</div><div className="s">out of pocket</div></div>
+            </div>
+          )}
+          {error && <div className="fx">Can’t convert every currency right now. Totals by currency are below.</div>}
           {foreign && !error && (
             <div className="fx">
-              In {base} · {rates.estimate ? 'estimated rates (offline)' : `ECB rates of ${rates.date}`}
+              All in {base} · {foreignNote} converted at {rates.estimate ? 'estimated rates (offline)' : `ECB rates of ${rates.date}`}
             </div>
           )}
         </section>
@@ -92,7 +101,7 @@ export function Split({ trip, me, rates, onOpen, onUpdate, onSwitchMe }: {
         </section>
       )}
 
-      {totals.length > 0 && (
+      {error && totals.length > 0 && (
         <div className="totals">
           {totals.map(([c, v]) => (
             <div className="total" key={c}><div className="k">{c} TOTAL</div><div className="v">{fmtMoney(v, c)}</div></div>
