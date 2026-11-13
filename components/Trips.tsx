@@ -51,7 +51,7 @@ function TripCard({ s, now, temp }: { s: TripSummary; now: Date; temp: number | 
         <div className="stub">
           <small>Booked</small>
           <div className="big">{s.booked}/{s.total}</div>
-          <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
+          {left > 0 && <div className="togo">{left} to go</div>}
         </div>
       )}
     </Link>

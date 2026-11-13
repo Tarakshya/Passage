@@ -74,7 +74,7 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
   const route = routeCodes(trip, now);
   return (
     // The whole boarding pass is the switch: tap it to open the itinerary, tap again to fold it.
-    <section className={`ticket tappable ${expanded ? 'open' : ''}`} role="button" tabIndex={0} aria-expanded={expanded}
+    <section className={`ticket tappable ${expanded ? "open" : ""} ${done ? "past" : ""}`} role="button" tabIndex={0} aria-expanded={expanded}
       aria-label={`${trip.name} trip. ${expanded ? 'Tap to fold the itinerary' : 'Tap to open the itinerary'}`}
       onClick={onToggle} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}>
       <div className="main">
@@ -98,7 +98,7 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
       <div className="stub" aria-label={`${prog.booked} of ${prog.total} booked`}>
         <small>Booked</small>
         <div className="big">{prog.booked}/{prog.total}</div>
-        <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
+        {left > 0 && <div className="togo">{left} to go</div>}
         <div className="tk-tap" aria-hidden="true">{expanded ? 'Tap to fold' : 'Tap to open'}</div>
       </div>
     </section>
