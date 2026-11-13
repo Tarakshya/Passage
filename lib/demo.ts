@@ -1,9 +1,9 @@
 // The sample trips. Every date is relative to "now", so they never go stale:
 //
-// - Amsterdam–Hvar (token "demo") is always in progress: it's Day 2 in Amsterdam, and Rijksmuseum
+// - Amsterdam–Hvar (token "demo"), T and GB, is always in progress: it's Day 2 in Amsterdam, and Rijksmuseum
 //   tickets start in ~75 minutes — the booking the demo clock walks from on track to at risk.
 //   One leg (Milan → Split → Hvar) is still to book, so the "To book" flow is visible.
-// - Austria–Croatia (token "demo-past") ended a few weeks ago: everything booked, everyone
+// - Austria–Croatia (token "demo-past"), T, Sam and Priya, ended a few weeks ago: everything booked, everyone
 //   settled up. It shows what a finished trip looks like.
 
 import type { Expense, Reservation, Traveler, Trip } from './types';
@@ -59,11 +59,13 @@ function res(r: Partial<Reservation> & Pick<Reservation, 'id' | 'type' | 'title'
 }
 
 const ALL = ['you', 'sam', 'priya'];
+/** The Amsterdam trip is just T and GB. */
+const DUO = ['you', 'gb'];
 
 /** The Ledger entry a paid booking makes (same id the app uses, so it's never logged twice). */
-function paidBooking(r: Reservation, payerId: string, now: Date, category: Expense['category']): Expense {
+function paidBooking(r: Reservation, payerId: string, now: Date, category: Expense['category'], splitWith = ALL): Expense {
   return {
-    id: `e-${r.id}`, title: r.title, amount: r.price!, currency: r.currency!, payerId, splitWith: ALL,
+    id: `e-${r.id}`, title: r.title, amount: r.price!, currency: r.currency!, payerId, splitWith,
     date: r.startLocal.slice(0, 10), category, autoScanned: r.source === 'scan', pendingAmount: null, pendingBy: null, createdAt: now.toISOString(),
   };
 }
@@ -82,66 +84,66 @@ export function buildDemoTrip(now: Date = new Date()): Trip {
       id: 'r-out', type: 'flight', legId: 'leg-out', title: 'Bengaluru → Amsterdam',
       startLocal: `${d(-2)}T23:55`, startTz: IST, endLocal: `${d(-1)}T07:40`, endTz: AMS,
       address: 'Kempegowda International Airport', lat: 13.1986, lng: 77.7066, route: 'BLR → AMS',
-      service: 'NW 512', seat: '24A, 24B, 24C', confirmation: 'QX7R2M', price: 18435000, currency: 'INR',
+      service: 'NW 512', seat: '24A, 24B', confirmation: 'QX7R2M', price: 12290000, currency: 'INR',
     }),
     res({
       id: 'r-spiegel', type: 'hotel', stopId: 'ams', title: 'Spiegel Canal Rooms',
       startLocal: `${d(-1)}T15:00`, startTz: AMS, endLocal: `${d(4)}T11:00`, endTz: AMS,
       address: 'Spiegelgracht 14, 1017 JR Amsterdam', lat: 52.3627, lng: 4.8879,
-      seat: '2 canal-view rooms, breakfast included', confirmation: 'HCR-58210447', price: 184000, currency: 'EUR', cancelBy: `${d(-8)}T23:59`,
+      seat: 'Canal-view double, breakfast included', confirmation: 'HCR-58210447', price: 110400, currency: 'EUR', cancelBy: `${d(-8)}T23:59`,
     }),
     res({
       id: 'r-rijks', type: 'activity', stopId: 'ams', title: 'Rijksmuseum · The Night Watch',
       startLocal: rijks, startTz: AMS, endLocal: addMinutesLocal(rijks, 150), endTz: AMS,
       address: 'Museumstraat 1, 1071 XX Amsterdam', lat: 52.36, lng: 4.8852,
-      seat: '3 adult tickets, timed entry', confirmation: 'RM-20931-7741', price: 7500, currency: 'EUR',
+      seat: '2 adult tickets, timed entry', confirmation: 'RM-20931-7741', price: 5000, currency: 'EUR',
     }),
     res({
       id: 'r-lepel', type: 'dinner', stopId: 'ams', title: 'De Gouden Lepel',
       startLocal: `${d(2)}T20:00`, startTz: AMS, endLocal: `${d(2)}T22:00`, endTz: AMS,
-      address: 'Utrechtsestraat 41, 1017 VJ Amsterdam', lat: 52.3627, lng: 4.8977, seat: 'Table for 3', confirmation: 'GL-4471', source: 'manual',
+      address: 'Utrechtsestraat 41, 1017 VJ Amsterdam', lat: 52.3627, lng: 4.8977, seat: 'Table for 2', confirmation: 'GL-4471', source: 'manual',
     }),
     res({
       id: 'r-cruise', type: 'activity', stopId: 'ams', title: 'Evening Canal Cruise',
       startLocal: `${d(1)}T19:30`, startTz: AMS, endLocal: `${d(1)}T21:00`, endTz: AMS,
       address: 'Prins Hendrikkade 25, Amsterdam', lat: 52.3771, lng: 4.9003,
-      seat: '3 tickets · drinks included', confirmation: 'CC-881204', price: 8985, currency: 'EUR',
+      seat: '2 tickets · drinks included', confirmation: 'CC-881204', price: 5990, currency: 'EUR',
     }),
     res({
       id: 'r-train', type: 'train', legId: 'leg-ams-bru', title: 'Amsterdam Centraal → Bruxelles-Midi',
       startLocal: `${d(4)}T09:16`, startTz: AMS, endLocal: `${d(4)}T11:08`, endTz: BRU,
       address: 'Amsterdam Centraal', lat: 52.3791, lng: 4.9003, route: 'Amsterdam Centraal → Bruxelles-Midi',
-      service: 'LR 9316', seat: 'Coach 4, seats 31–33', confirmation: 'LR4K-29XQ', price: 14760, currency: 'EUR',
+      service: 'LR 9316', seat: 'Coach 4, seats 31–32', confirmation: 'LR4K-29XQ', price: 9840, currency: 'EUR',
     }),
     res({
       id: 'r-sablon', type: 'hotel', stopId: 'bru', title: 'Maison du Sablon',
       startLocal: `${d(4)}T14:00`, startTz: BRU, endLocal: `${d(7)}T11:00`, endTz: BRU,
       address: 'Rue de Rollebeek 7, 1000 Bruxelles', lat: 50.8411, lng: 4.3536,
-      seat: 'Family room for 3', confirmation: 'MS-30981', price: 116100, currency: 'EUR',
+      seat: 'Double room', confirmation: 'MS-30981', price: 77400, currency: 'EUR',
     }),
     res({
       id: 'r-bru-mxp', type: 'flight', legId: 'leg-bru-mil', title: 'Brussels → Milan',
       startLocal: `${d(7)}T12:35`, startTz: BRU, endLocal: `${d(7)}T14:10`, endTz: MIL,
       address: 'Brussels Airport', lat: 50.901, lng: 4.4856, route: 'BRU → MXP',
-      service: 'AU 2241', seat: '14D, 14E, 14F', confirmation: 'ZP8LQ4', price: 31890, currency: 'EUR',
+      service: 'AU 2241', seat: '14D, 14E', confirmation: 'ZP8LQ4', price: 21260, currency: 'EUR',
     }),
     res({
       id: 'r-navigli', type: 'hotel', stopId: 'mil', title: 'Navigli Loft Studios',
       startLocal: `${d(7)}T15:00`, startTz: MIL, endLocal: `${d(11)}T10:30`, endTz: MIL,
       address: 'Via Vigevano 18, 20144 Milano', lat: 45.4545, lng: 9.1752,
-      seat: 'Two-bedroom loft', confirmation: '4410 228 917', price: 164400, currency: 'EUR',
+      seat: 'Loft studio for 2', confirmation: '4410 228 917', price: 109600, currency: 'EUR',
     }),
     res({
       id: 'r-pakleni', type: 'hotel', stopId: 'hvr', title: 'Villa Pakleni',
       startLocal: `${d(11)}T18:00`, startTz: HR, endLocal: `${d(14)}T08:00`, endTz: HR,
       address: 'Put Pakleni 4, 21450 Hvar', lat: 43.1716, lng: 16.4385,
-      seat: 'Sea-view apartment for 3', confirmation: 'VP-2027-0611-38', price: 78000, currency: 'EUR',
+      seat: 'Sea-view studio for 2', confirmation: 'VP-2027-0611-38', price: 52000, currency: 'EUR',
     }),
     res({
       id: 'r-ret', type: 'flight', legId: 'leg-ret', title: 'Split → Bengaluru',
       startLocal: `${d(14)}T11:20`, startTz: HR, endLocal: `${d(15)}T03:10`, endTz: IST,
       address: 'Split Airport', lat: 43.5389, lng: 16.298, route: 'SPU → IST → BLR',
-      service: 'NW 718 · NW 64', seat: '21C, 21D, 21E', confirmation: 'QX9D4T', price: 16290000, currency: 'INR',
+      service: 'NW 718 · NW 64', seat: '21C, 21D', confirmation: 'QX9D4T', price: 10860000, currency: 'INR',
     }),
   ];
   const by = (id: string) => reservations.find(r => r.id === id)!;
@@ -154,7 +156,10 @@ export function buildDemoTrip(now: Date = new Date()): Trip {
     baseCurrency: 'EUR',
     adminId: 'you',
     isDemo: true,
-    travelers: travelers(now),
+    travelers: [
+      travelers(now)[0],
+      { id: 'gb', name: 'GB', color: '#C9AE7A', profile: { interests: ['Food markets', 'Cycling', 'Jazz bars', 'Vintage shops', 'History'], link: null, updatedAt: now.toISOString() } },
+    ],
     stops: [
       { id: 'ams', order: 1, name: 'Amsterdam', country: 'NL', lat: 52.3676, lng: 4.9041, tz: AMS, arrive: d(-1), depart: d(4) },
       { id: 'bru', order: 2, name: 'Brussels', country: 'BE', lat: 50.8503, lng: 4.3517, tz: BRU, arrive: d(4), depart: d(7) },
@@ -171,21 +176,21 @@ export function buildDemoTrip(now: Date = new Date()): Trip {
     ],
     reservations,
     expenses: [
-      paidBooking(by('r-out'), 'you', now, 'transit'),
-      paidBooking(by('r-spiegel'), 'sam', now, 'stay'),
-      paidBooking(by('r-rijks'), 'priya', now, 'activity'),
-      paidBooking(by('r-cruise'), 'you', now, 'activity'),
-      paidBooking(by('r-train'), 'sam', now, 'transit'),
-      paidBooking(by('r-sablon'), 'priya', now, 'stay'),
-      paidBooking(by('r-bru-mxp'), 'you', now, 'transit'),
-      paidBooking(by('r-navigli'), 'sam', now, 'stay'),
-      paidBooking(by('r-pakleni'), 'you', now, 'stay'),
-      paidBooking(by('r-ret'), 'you', now, 'transit'),
-      expense({ id: 'e-taxi', title: 'Airport taxi · BLR', amount: 240000, currency: 'INR', payerId: 'you', splitWith: ['you', 'priya'], date: d(-2), category: 'taxi' }, now),
-      expense({ id: 'e-schiphol', title: 'Schiphol → Centraal trains', amount: 1770, payerId: 'sam', date: d(-1), category: 'transit' }, now),
-      expense({ id: 'e-dinner', title: 'Dinner · Café de Klos', amount: 12640, payerId: 'priya', date: d(-1), category: 'food', autoScanned: true }, now),
-      // Priya corrected a scanned bill, so the admin (you) is asked to approve the new amount.
-      expense({ id: 'e-market', title: 'Albert Cuyp market lunch', amount: 3800, payerId: 'priya', date: d(0), category: 'food', autoScanned: true, pendingAmount: 4250, pendingBy: 'priya' }, now),
+      paidBooking(by('r-out'), 'you', now, 'transit', DUO),
+      paidBooking(by('r-spiegel'), 'gb', now, 'stay', DUO),
+      paidBooking(by('r-rijks'), 'gb', now, 'activity', DUO),
+      paidBooking(by('r-cruise'), 'you', now, 'activity', DUO),
+      paidBooking(by('r-train'), 'gb', now, 'transit', DUO),
+      paidBooking(by('r-sablon'), 'gb', now, 'stay', DUO),
+      paidBooking(by('r-bru-mxp'), 'you', now, 'transit', DUO),
+      paidBooking(by('r-navigli'), 'gb', now, 'stay', DUO),
+      paidBooking(by('r-pakleni'), 'you', now, 'stay', DUO),
+      paidBooking(by('r-ret'), 'you', now, 'transit', DUO),
+      expense({ id: 'e-taxi', title: 'Airport taxi · BLR', amount: 160000, currency: 'INR', payerId: 'you', splitWith: DUO, date: d(-2), category: 'taxi' }, now),
+      expense({ id: 'e-schiphol', title: 'Schiphol → Centraal trains', amount: 1180, payerId: 'gb', splitWith: DUO, date: d(-1), category: 'transit' }, now),
+      expense({ id: 'e-dinner', title: 'Dinner · Café de Klos', amount: 8420, payerId: 'gb', splitWith: DUO, date: d(-1), category: 'food', autoScanned: true }, now),
+      // GB corrected a scanned bill, so the admin (you) is asked to approve the new amount.
+      expense({ id: 'e-market', title: 'Albert Cuyp market lunch', amount: 2600, payerId: 'gb', splitWith: DUO, date: d(0), category: 'food', autoScanned: true, pendingAmount: 2950, pendingBy: 'gb' }, now),
     ],
   };
 }
