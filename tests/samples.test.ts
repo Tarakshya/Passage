@@ -24,9 +24,14 @@ describe('the sample trips', () => {
     }
   });
 
-  it('has Rijksmuseum tickets about 75 minutes from now, and one leg still to book', () => {
+  it('has a booking about 75 minutes from now that fits the time of day, and one leg still to book', () => {
+    const at = (iso: string) => buildDemoTrip(new Date(iso)).reservations.find(r => r.id === 'r-live')!;
+    expect(at('2026-11-13T08:30:00Z').title).toMatch(/Rijksmuseum/);   // 09:30 in Amsterdam
+    expect(at('2026-11-13T17:30:00Z').type).toBe('dinner');           // 18:30
+    expect(at('2026-11-13T22:20:00Z').title).toMatch(/Jazz/);         // 23:20
+    expect(at('2026-11-13T04:30:00Z').title).toMatch(/Sunrise/);      // 05:30
     const trip = buildDemoTrip(NOW);
-    const rijks = trip.reservations.find(r => r.id === 'r-rijks')!;
+    const rijks = trip.reservations.find(r => r.id === 'r-live')!;
     expect(rijks.startLocal > '2026-11-13T10:40').toBe(true); // 09:30 Amsterdam + 75 min, rounded up
     expect(rijks.startLocal <= '2026-11-13T10:50').toBe(true);
     const unbooked = trip.legs.filter(l => !trip.reservations.some(r => r.legId === l.id));
@@ -58,5 +63,18 @@ describe('a phone that saved the old sample', () => {
     const { LocalStore } = await import('../lib/store');
     const trip = await new LocalStore().load('demo');
     expect(trip?.name).toBe('Amsterdam–Hvar');
+  });
+});
+
+describe('the demo clock', () => {
+  it('walks the next booking from on track to leave soon, at risk and missed, at any time of day', async () => {
+    const { liveStatus } = await import('../lib/live-status');
+    const { DEMO_HOTEL } = await import('../lib/demo');
+    for (const iso of ['2026-11-13T08:30:00Z', '2026-11-13T17:30:00Z', '2026-11-13T22:20:00Z', '2026-11-13T04:30:00Z', '2026-11-13T12:03:00Z']) {
+      const now = new Date(iso);
+      const r = buildDemoTrip(now).reservations.find(x => x.id === 'r-live')!;
+      const at = (min: number) => liveStatus(r, new Date(now.getTime() + min * 60000), DEMO_HOTEL, { lat: r.lat!, lng: r.lng! })?.state;
+      expect([at(0), at(55), at(70), at(90)], `${iso}: ${r.title}`).toEqual(['on-track', 'leave-soon', 'at-risk', 'missed']);
+    }
   });
 });

@@ -306,11 +306,11 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .select-wrap .select { padding-right: 44px; }
 .help { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.45; }
 .help.warn { color: var(--gold); font-weight: 600; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; } /* minmax: date boxes may shrink below their content width */
 .row3 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
-.dt { background: var(--deck); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; position: relative; display: block; }
+.dt { background: var(--deck); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; position: relative; display: block; min-width: 0; }
 .dt .k { font-size: 9.5px; font-weight: 500; letter-spacing: 1.4px; color: var(--muted); text-transform: uppercase; }
-.dt input { display: block; width: 100%; border: 0; outline: none; background: transparent; font-size: 15px; font-weight: 500; padding: 4px 0 0; min-height: 26px; color: var(--cream); }
+.dt input { display: block; width: 100%; min-width: 0; border: 0; outline: none; background: transparent; font-size: 15px; font-weight: 500; padding: 4px 0 0; min-height: 26px; color: var(--cream); }
 .dt:focus-within { border-color: var(--lagoon); }
 .icon-input { position: relative; }
 .icon-input > .ms { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 19px; }
@@ -581,3 +581,9 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .spend .k { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .spend .v { font-size: 16px; font-weight: 500; margin-top: 5px; color: var(--cream); font-variant-numeric: tabular-nums; }
 .spend .s { font-size: 11px; color: var(--faint); margin-top: 2px; }
+
+/* "How it works" as a sheet from the home screen */
+.first-trip.in-sheet { margin-top: 0; border: 0; padding: 4px 0 8px; }
+.first-trip.in-sheet .tips { margin-bottom: 18px; }
+.sheet-tip { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--deck); font-size: 13.5px; line-height: 1.45; color: var(--soft); }
+.sheet-tip b { color: var(--gold); font-weight: 500; }

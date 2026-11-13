@@ -87,7 +87,7 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
   return (
     <Sheet label="Demo controls" title="Demo controls" onClose={onClose}>
       <div className="demo-panel">
-        <p className="help" style={{ fontSize: 14, marginTop: 0 }}>It’s Day 2 in Amsterdam. Move the clock to watch today’s Rijksmuseum tickets go from on track to at risk.</p>
+        <p className="help" style={{ fontSize: 14, marginTop: 0 }}>It’s Day 2 in Amsterdam. Move the clock to watch your next booking go from on track to at risk.</p>
         <div className="row">
           <div className="clock">{local} <span className="clock-sub">{DEMO_CITY}{sim.offsetMin ? ` · +${fmtDuration(sim.offsetMin)}` : ' · now'}</span></div>
           <input className="range" type="range" min={0} max={150} step={5} value={sim.offsetMin}
