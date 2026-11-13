@@ -10,7 +10,7 @@ import { storeFor } from '@/lib/store';
 import { daysBetween } from '@/lib/time';
 import type { Trip } from '@/lib/types';
 import { TripForm } from './TripForm';
-import { Icon, Sheet } from './ui';
+import { ArrivedStamp, Icon, Sheet } from './ui';
 
 /** Saves a brand-new trip, makes its creator the admin on this phone, and opens it. */
 export async function createTrip(t: Trip, go: (href: string) => void) {
@@ -45,7 +45,10 @@ function TripCard({ s, now, temp }: { s: TripSummary; now: Date; temp: number | 
           {s.crew.length > 0 && <div>Crew<b>{s.crew.length}</b></div>}
         </div>
       </div>
-      {s.total > 0 && (
+      {/* A finished trip: the stub is stamped instead of counting bookings. */}
+      {st.phase === 'past' && last ? (
+        <div className="stub stamped"><ArrivedStamp code={placeCode(s.home ?? last.name)} date={last.depart} /></div>
+      ) : s.total > 0 && (
         <div className="stub">
           <small>Booked</small>
           <div className="big">{s.booked}/{s.total}</div>
@@ -106,6 +109,8 @@ function Swipe({ children, onDelete, name }: { children: ReactNode; onDelete: ()
 function Tips({ installed, onDownload }: { installed: boolean; onDownload: () => void }) {
   const download = onDownload;
   return (
+    <>
+    <p className="ai-line"><b>AI does the busywork:</b> it reads your bookings and receipts, and researches each city around what you love. You check everything before it’s saved.</p>
     <ol className="tips">
       <li><b className="c-gold">Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
       <li><b className="c-lagoon">Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
@@ -116,6 +121,7 @@ function Tips({ installed, onDownload }: { installed: boolean; onDownload: () =>
         ? <li><b className="c-lagoon">It’s on your home screen.</b> Passage opens like an app and works offline.</li>
         : <li><button className="tip-link" onClick={download}>Download</button> Passage to your home screen. It opens like an app and works offline.</li>}
     </ol>
+    </>
   );
 }
 
