@@ -48,3 +48,15 @@ describe('the sample trips', () => {
     for (const v of netBalances(trip.expenses, trip.travelers, 'EUR', {}).values()) expect(v).toBe(0);
   });
 });
+
+describe('a phone that saved the old sample', () => {
+  it('gets the new one when it opens the sample again', async () => {
+    const mem = new Map<string, string>();
+    (globalThis as any).localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => mem.set(k, v), removeItem: (k: string) => mem.delete(k) };
+    const { buildDemoTrip: oldSample } = await import('./fixtures/austria-demo');
+    mem.set('passage:trip:demo', JSON.stringify({ trip: oldSample(new Date()), seededAt: Date.now() }));
+    const { LocalStore } = await import('../lib/store');
+    const trip = await new LocalStore().load('demo');
+    expect(trip?.name).toBe('Amsterdam–Hvar');
+  });
+});
