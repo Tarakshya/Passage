@@ -10,7 +10,7 @@ import { storeFor } from '@/lib/store';
 import { daysBetween } from '@/lib/time';
 import type { Trip } from '@/lib/types';
 import { TripForm } from './TripForm';
-import { Icon, Sheet } from './ui';
+import { ArrivedStamp, Icon, Sheet } from './ui';
 
 /** Saves a brand-new trip, makes its creator the admin on this phone, and opens it. */
 export async function createTrip(t: Trip, go: (href: string) => void) {
@@ -45,11 +45,13 @@ function TripCard({ s, now, temp }: { s: TripSummary; now: Date; temp: number | 
           {s.crew.length > 0 && <div>Crew<b>{s.crew.length}</b></div>}
         </div>
       </div>
+      {/* A finished trip gets an arrival stamp on the paper part of the ticket. */}
+      {st.phase === 'past' && last && <ArrivedStamp code={placeCode(s.home ?? last.name)} date={last.depart} />}
       {s.total > 0 && (
         <div className="stub">
           <small>Booked</small>
           <div className="big">{s.booked}/{s.total}</div>
-          <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
+          {left > 0 && <div className="togo">{left} to go</div>}
         </div>
       )}
     </Link>
@@ -106,6 +108,8 @@ function Swipe({ children, onDelete, name }: { children: ReactNode; onDelete: ()
 function Tips({ installed, onDownload }: { installed: boolean; onDownload: () => void }) {
   const download = onDownload;
   return (
+    <>
+    <p className="ai-line"><b>Passage does the busywork:</b> it reads your bookings and receipts, and researches each city around what you love. You check everything before it’s saved, booked or expensed.</p>
     <ol className="tips">
       <li><b className="c-gold">Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
       <li><b className="c-lagoon">Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
@@ -116,12 +120,13 @@ function Tips({ installed, onDownload }: { installed: boolean; onDownload: () =>
         ? <li><b className="c-lagoon">It’s on your home screen.</b> Passage opens like an app and works offline.</li>
         : <li><button className="tip-link" onClick={download}>Download</button> Passage to your home screen. It opens like an app and works offline.</li>}
     </ol>
+    </>
   );
 }
 
 function HowItWorksSheet({ installed, onDownload, onClose }: { installed: boolean; onDownload: () => void; onClose: () => void }) {
   return (
-    <Sheet label="How it works" title="How it works" onClose={onClose}>
+    <Sheet label="How it works" title="How it works" onClose={onClose} className="how-sheet">
       <div className="first-trip in-sheet">
         <Tips installed={installed} onDownload={onDownload} />
         <p className="sheet-tip">On the sample trip, tap <b>Demo</b> at the top to move the clock and watch Next Up warn you you&rsquo;re running late.</p>
@@ -260,7 +265,7 @@ export function Trips({ clean = false }: { clean?: boolean }) {
               ))}
             </div>
             <button className="add-row" onClick={() => setCreating(true)}><Icon name="add" />Plan a new trip</button>
-            <button className="quiet-link" onClick={() => setHow(true)}>How it works</button>
+            <button className="how-link" onClick={() => setHow(true)}><Icon name="info" />How it works</button>
           </>
         )}
         {hideSample && list !== null && <button className="quiet-link" onClick={showSample}>See the sample trips</button>}

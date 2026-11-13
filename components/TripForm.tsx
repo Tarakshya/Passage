@@ -216,7 +216,7 @@ export function TripForm({ initial, onSave, onClose, canInvite = false }: { init
         {stops.map((s, i) => (
           <div key={s.id}>
             <div className="help" style={{ margin: '10px 4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name={TYPE_ICON[modeFor(legKeys[i], i)]} />
+              <Icon name={TYPE_ICON[modeFor(legKeys[i], i)]} className={modeFor(legKeys[i], i) === 'flight' ? 'fly-down' : ''} />
               <select aria-label={`How you get to stop ${i + 1}`} value={modeFor(legKeys[i], i)} onChange={e => setModes(m => ({ ...m, [legKeys[i]]: e.target.value as Mode }))}
                 style={{ border: 0, background: 'transparent', fontWeight: 700, color: 'var(--text-3)' }}>
                 {MODES.map(m => <option key={m} value={m}>{m[0].toUpperCase() + m.slice(1)}</option>)}
@@ -226,7 +226,7 @@ export function TripForm({ initial, onSave, onClose, canInvite = false }: { init
             <div className="stop-edit">
               <div className="h">
                 <span className="idx mono" style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</span>
-                <span className="n">{s.place?.name ?? 'New stop'}</span>
+                <span className="n">{s.place?.name ?? (i === 0 ? 'First stop' : 'Next stop')}</span>
                 {stops.length > 1 && <button className="close-btn" aria-label="Remove stop" onClick={() => setStops(st => st.filter(x => x.id !== s.id))}><Icon name="close" /></button>}
               </div>
               <div style={{ marginTop: 10 }}>
@@ -254,7 +254,7 @@ export function TripForm({ initial, onSave, onClose, canInvite = false }: { init
           <Icon name="add_circle" fill />Add a stop
         </button>
         <div className="help" style={{ margin: '10px 4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name={TYPE_ICON[modeFor(legKeys.at(-1)!, legKeys.length - 1)]} />
+          <Icon name={TYPE_ICON[modeFor(legKeys.at(-1)!, legKeys.length - 1)]} className={modeFor(legKeys.at(-1)!, legKeys.length - 1) === 'flight' ? 'fly-down' : ''} />
           <select aria-label="How you get home" value={modeFor(legKeys.at(-1)!, legKeys.length - 1)} onChange={e => setModes(m => ({ ...m, [legKeys.at(-1)!]: e.target.value as Mode }))}
             style={{ border: 0, background: 'transparent', fontWeight: 700, color: 'var(--text-3)' }}>
             {MODES.map(m => <option key={m} value={m}>{m[0].toUpperCase() + m.slice(1)}</option>)}

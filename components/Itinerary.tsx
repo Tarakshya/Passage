@@ -1,13 +1,13 @@
 'use client';
 
-import { shortCountdown, ticketRange } from '@/lib/home';
+import { placeCode, routeCodes, shortCountdown, ticketRange } from '@/lib/home';
 import { klookForLeg, withAid } from '@/lib/klook';
 import type { LiveStatus } from '@/lib/live-status';
 import { instantToZoned, fmtTime, fmtDuration } from '@/lib/time';
 import { bookingProgress, currentStop, legLabel, mapStop, placeName, timeline, tripCountdown, tripDates, type TimelineItem } from '@/lib/trip';
 import type { Leg, Reservation, Stop, Trip } from '@/lib/types';
 import { MapView } from './MapView';
-import { Icon, TYPE_ICON, TYPE_LABEL } from './ui';
+import { ArrivedStamp, Icon, TYPE_ICON, TYPE_LABEL } from './ui';
 
 export type LiveFn = (r: Reservation) => LiveStatus | null;
 
@@ -70,25 +70,35 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
   const city = mapStop(trip, now);
   const current = currentStop(trip, now);
   const left = prog.total - prog.booked;
+  const done = tripCountdown(trip, now) === 'Completed';
+  const route = routeCodes(trip, now);
   return (
     // The whole boarding pass is the switch: tap it to open the itinerary, tap again to fold it.
-    <section className={`ticket tappable ${expanded ? 'open' : ''}`} role="button" tabIndex={0} aria-expanded={expanded}
+    <section className={`ticket tappable ${expanded ? "open" : ""} ${done ? "past" : ""}`} role="button" tabIndex={0} aria-expanded={expanded}
       aria-label={`${trip.name} trip. ${expanded ? 'Tap to fold the itinerary' : 'Tap to open the itinerary'}`}
       onClick={onToggle} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}>
       <div className="main">
         {city && <div className="tk-map"><MapView center={{ lat: city.lat, lng: city.lng }} zoom={12} tint={false} /></div>}
-        <div className="tk-status">{tripCountdown(trip, now)}{city && current ? ` · ${city.name}` : ''}</div>
+        <div className={`tk-status ${done ? 'done' : ''}`}>{tripCountdown(trip, now)}{city && current ? ` · ${city.name}` : ''}</div>
         <h2>{trip.name}</h2>
+        {/* The route, starting from home: cities already behind you are crossed off, today's is underlined. */}
+        <div className="codes tk-codes" aria-label={`Route: ${route.codes.join(', ')}`}>
+          {route.codes.map((c, i) => (
+            <span key={i}>{i > 0 && <i aria-hidden="true">·</i>}<span className={route.at > 0 && i < route.at ? 'done' : route.at > 0 && i === route.at ? 'at' : ''}>{c}</span></span>
+          ))}
+        </div>
         <div className="meta">
           {dates && <div>Dates<b>{ticketRange(dates.start, dates.end)}</b></div>}
           {dates && <div>Nights<b>{dates.nights}</b></div>}
-          <div>Crew<b>{trip.travelers.length <= 4 ? trip.travelers.map(t => t.name.slice(0, 1).toUpperCase()).join(' · ') : trip.travelers.length}</b></div>
+          <div>Crew<b>{trip.travelers.length}</b></div>
         </div>
       </div>
+      {/* A finished trip gets an arrival stamp on the paper part of the ticket. */}
+      {done && dates && <ArrivedStamp code={placeCode(trip.home.name)} date={dates.end} />}
       <div className="stub" aria-label={`${prog.booked} of ${prog.total} booked`}>
         <small>Booked</small>
         <div className="big">{prog.booked}/{prog.total}</div>
-        <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
+        {left > 0 && <div className="togo">{left} to go</div>}
         <div className="tk-tap" aria-hidden="true">{expanded ? 'Tap to fold' : 'Tap to open'}</div>
       </div>
     </section>
@@ -102,7 +112,7 @@ function LegLines({ trip, leg, bookings, live, h, skip }: { trip: Trip; leg: Leg
     return (
       <div className="legline transport todo">
         <button className="leg-btn" onClick={() => h.addToLeg(leg)} aria-label={`Add the ${TYPE_LABEL[leg.mode].toLowerCase()} for ${legLabel(trip, leg)}`}>
-          <span className="mode"><Icon name={TYPE_ICON[leg.mode]} /></span>
+          <span className="mode"><Icon name={TYPE_ICON[leg.mode]} className={leg.mode === 'flight' ? 'fly-down' : ''} /></span>
           <span className="tx"><b>{TYPE_LABEL[leg.mode]} to {placeName(trip, leg.to)}</b><small>From {placeName(trip, leg.from)} · not booked yet</small></span>
           <span className="st todo">To book +</span>
         </button>
@@ -118,7 +128,7 @@ function LegLines({ trip, leg, bookings, live, h, skip }: { trip: Trip; leg: Leg
         const dest = i < real.length - 1 && b.route?.includes('→') ? b.route.split('→').at(-1)!.trim() : placeName(trip, leg.to);
         return (
           <button key={b.id} className={`legline transport ${s?.state ?? ''}`} onClick={() => h.openReservation(b)}>
-            <span className="mode"><Icon name={TYPE_ICON[b.type]} /></span>
+            <span className="mode"><Icon name={TYPE_ICON[b.type]} className={b.type === 'flight' ? 'fly-down' : ''} /></span>
             <span className="tx">
               <b>{TYPE_LABEL[b.type]} to {dest}</b>
               <small>{[fmtTime(b.startLocal), b.service, b.status === 'booked' ? null : 'awaiting confirmation'].filter(Boolean).join(' · ')}</small>

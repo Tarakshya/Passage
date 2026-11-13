@@ -106,3 +106,16 @@ export function Sheet({
     </div>
   );
 }
+
+/** An immigration-style ink stamp for a finished trip: "Arrived home", the home airport code, the date. */
+export function ArrivedStamp({ code, date }: { code: string; date: string }) {
+  const M = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const when = `${date.slice(8, 10)} ${M[Number(date.slice(5, 7)) - 1]} ${date.slice(0, 4)}`;
+  return (
+    <div className="visa-stamp" aria-label={`Completed, arrived home ${when}`}>
+      <span className="vs-k">Arrived</span>
+      <span className="vs-code">{code}</span>
+      <span className="vs-date">{when}</span>
+    </div>
+  );
+}
