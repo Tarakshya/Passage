@@ -131,14 +131,14 @@ a { color: inherit; }
 .tk-map .map img { filter: grayscale(1) contrast(1.15); opacity: .2; mix-blend-mode: multiply; }
 .ticket .map-credit, .stop .map-credit { display: none; }
 .ticket .codes { display: flex; flex-wrap: wrap; gap: 2px 5px; padding-right: 30px; font-size: 10.5px; font-weight: 500; letter-spacing: .08em; color: var(--paper-muted); }
-.ticket .codes .done { text-decoration: line-through; text-decoration-thickness: 1px; }
+.ticket .codes .done { text-decoration: line-through; text-decoration-thickness: 1.5px; text-decoration-color: var(--alert); }
 .ticket .codes .at { color: var(--navy-ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--navy-ink); }
 .ticket h2 { font-family: var(--serif); font-weight: 500; font-size: 32px; margin: 4px 0 10px; line-height: 1; letter-spacing: -.01em; overflow-wrap: anywhere; }
-.ticket .meta { display: flex; gap: 16px; font-size: 9.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--paper-muted); }
-.ticket .meta b { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--navy-ink); letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.ticket .meta { display: flex; gap: 16px; font-size: 9px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--paper-muted); }
+.ticket .meta b { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--navy-ink); letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
 .ticket .stub { width: 88px; flex: 0 0 auto; border-left: 2px dashed var(--paper-rule); padding: 14px 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .ticket .stub small { font-size: 9.5px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-muted); }
-.ticket .stub .big { font-family: var(--serif); font-size: 32px; font-weight: 500; line-height: 1; }
+.ticket .stub .big { font-family: var(--serif); font-size: 26px; font-weight: 500; line-height: 1; white-space: nowrap; } /* fits 11/11 inside the stub */
 .ticket .stub .togo { margin-top: 6px; font-size: 10px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; background: var(--navy-ink); color: var(--lagoon); border-radius: 6px; padding: 5px 0; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 4px 0; margin: 10px 0 0; }
@@ -598,7 +598,7 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 
 /* A finished trip: red status and an immigration-style ink stamp on the boarding pass */
 .ticket { position: relative; }
-.trip-card.past .status, .tk-status.done { color: var(--alert); }
+.trip-card.past .status, .tk-status.done { color: var(--alert); font-size: 12px; }
 .visa-stamp {
   /* Bottom-right of the paper part of a finished trip's ticket, like an arrival stamp. */
   position: absolute; bottom: 5px; right: 96px; z-index: 2; pointer-events: none;

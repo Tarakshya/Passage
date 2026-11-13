@@ -90,7 +90,7 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
         <div className="meta">
           {dates && <div>Dates<b>{ticketRange(dates.start, dates.end)}</b></div>}
           {dates && <div>Nights<b>{dates.nights}</b></div>}
-          <div>Crew<b>{!done && trip.travelers.length <= 4 ? trip.travelers.map(t => t.name.slice(0, 1).toUpperCase()).join(' · ') : trip.travelers.length}</b></div>
+          <div>Crew<b>{trip.travelers.length}</b></div>
         </div>
       </div>
       {/* A finished trip gets an arrival stamp on the paper part of the ticket. */}
