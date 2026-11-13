@@ -7,7 +7,7 @@ import type { Reservation, Trip } from './types';
 
 const CODES: Record<string, string> = {
   bangalore: 'BLR', bengaluru: 'BLR', mumbai: 'BOM', delhi: 'DEL', 'new delhi': 'DEL', chennai: 'MAA', hyderabad: 'HYD', kolkata: 'CCU', goa: 'GOI',
-  vienna: 'VIE', wien: 'VIE', salzburg: 'SZG', dubrovnik: 'DBV', split: 'SPU', zagreb: 'ZAG', london: 'LON', paris: 'PAR', rome: 'ROM',
+  vienna: 'VIE', wien: 'VIE', brussels: 'BRU', bruxelles: 'BRU', hvar: 'HVR', salzburg: 'SZG', dubrovnik: 'DBV', split: 'SPU', zagreb: 'ZAG', london: 'LON', paris: 'PAR', rome: 'ROM',
   milan: 'MIL', venice: 'VCE', florence: 'FLR', barcelona: 'BCN', madrid: 'MAD', lisbon: 'LIS', porto: 'OPO', amsterdam: 'AMS', berlin: 'BER',
   munich: 'MUC', zurich: 'ZRH', geneva: 'GVA', prague: 'PRG', budapest: 'BUD', athens: 'ATH', istanbul: 'IST', dubai: 'DXB', singapore: 'SIN',
   bangkok: 'BKK', tokyo: 'TYO', kyoto: 'UKY', osaka: 'OSA', seoul: 'SEL', 'hong kong': 'HKG', sydney: 'SYD', melbourne: 'MEL',
@@ -125,7 +125,7 @@ export function tripSummary(trip: Trip): TripSummary {
 
 export type TripPhase = 'now' | 'soon' | 'past' | 'undated';
 
-/** Where a trip stands today, in words: "Day 1 of 14 · Vienna", "In 21 days", "Ended". */
+/** Where a trip stands today, in words: "Day 1 of 14 · Vienna", "In 21 days", "Completed". */
 export function summaryStatus(s: Pick<TripSummary, 'stops'>, now: Date): { phase: TripPhase; text: string; city: TripSummary['stops'][number] | null } {
   if (!s.stops.length) return { phase: 'undated', text: 'No dates yet', city: null };
   const first = s.stops[0];
@@ -137,7 +137,7 @@ export function summaryStatus(s: Pick<TripSummary, 'stops'>, now: Date): { phase
   }
   const total = daysBetween(first.arrive, last.depart) + 1;
   const day = daysBetween(first.arrive, today) + 1;
-  if (day > total) return { phase: 'past', text: 'Ended', city: null };
+  if (day > total) return { phase: 'past', text: 'Completed', city: null };
   const city = s.stops.find(x => x.arrive <= todayIn(x.tz, now) && todayIn(x.tz, now) < x.depart) ?? last;
   return { phase: 'now', text: `Day ${day} of ${total}`, city };
 }

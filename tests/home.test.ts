@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 import { countryName, greeting, nextUp, placeCode, routeCodes, shortCountdown, ticketRange } from '../lib/home';
 import { cleanKlookPrice, cleanKlookUrl, klookForLeg, KLOOK_RAIL_URL, withAid } from '../lib/klook';
 import type { LiveStatus } from '../lib/live-status';
@@ -35,7 +35,7 @@ describe('home screen text', () => {
 
   it('prints route codes and marks where you are', () => {
     const trip = buildDemoTrip(NOW);
-    expect(routeCodes(trip, NOW)).toEqual({ codes: ['BLR', 'VIE', 'GMU', 'DBV', 'SPU', 'HVA'], at: 1 });
+    expect(routeCodes(trip, NOW)).toEqual({ codes: ['BLR', 'VIE', 'GMU', 'DBV', 'SPU', 'HVR'], at: 1 });
     expect(routeCodes(trip, new Date(NOW.getTime() - 5 * 86400e3)).at).toBe(0);
     expect(placeCode('Český Krumlov')).toBe('CES');
     expect(placeCode('Ko')).toBe('KOX');

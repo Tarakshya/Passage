@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { tripSummary, type TripSummary } from './home';
 import type { Rates } from './balances';
-import { DEMO_TOKEN } from './demo';
+import { DEMO_HOTEL as SAMPLE_HOTEL, DEMO_TOKEN, isSampleToken } from './demo';
 import type { LatLng } from './live-status';
 import { applyMutation, type Mutation } from './mutations';
 import { localStore, storeFor } from './store';
@@ -50,8 +50,8 @@ export function useTrip(token: string) {
   }, [store, token]);
 
   const resetDemo = useCallback(() => {
-    if (token !== DEMO_TOKEN) return;
-    const trip = localStore().resetDemo();
+    if (!isSampleToken(token)) return;
+    const trip = localStore().resetDemo(token);
     setState({ status: 'ready', trip, offline: false });
   }, [token]);
 
@@ -126,7 +126,7 @@ export function useMe(trip: Trip | null): [string | null, (id: string) => void] 
 export type SimLocation = 'hotel' | 'device' | 'none';
 export interface Sim { offsetMin: number; location: SimLocation }
 export const SimContext = createContext<{ sim: Sim; setSim: (s: Sim) => void } | null>(null);
-export const DEMO_HOTEL: LatLng = { lat: 48.2027, lng: 16.3563 };
+export const DEMO_HOTEL: LatLng = SAMPLE_HOTEL;
 
 // ---------- Clock ----------
 

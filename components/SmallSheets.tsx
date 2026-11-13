@@ -1,5 +1,7 @@
 'use client';
 
+import { DEMO_CITY, DEMO_TZ } from '@/lib/demo';
+
 import { useState } from 'react';
 import type { LocState, Sim } from '@/lib/hooks';
 import { fmtDuration, instantToZoned } from '@/lib/time';
@@ -24,8 +26,8 @@ export function WhoAreYou({ trip, onPick, onClose }: { trip: Trip; onPick: (id: 
 type MenuKey = 'share' | 'trip' | 'profile' | 'demo';
 
 /** Everything that used to crowd the trip screen, one tap away. */
-export function TripMenu({ onPick, onClose, liveTimes, isDemo, onDelete }: {
-  onPick: (k: MenuKey) => void; onClose: () => void; liveTimes?: () => void; isDemo: boolean; onDelete: () => void;
+export function TripMenu({ onPick, onClose, liveTimes, isDemo, isSample = isDemo, onDelete }: {
+  onPick: (k: MenuKey) => void; onClose: () => void; liveTimes?: () => void; isDemo: boolean; isSample?: boolean; onDelete: () => void;
 }) {
   const [sure, setSure] = useState(false);
   const row = (icon: string, label: string, sub: string, run: () => void) => (
@@ -43,7 +45,7 @@ export function TripMenu({ onPick, onClose, liveTimes, isDemo, onDelete }: {
         {isDemo && row('tune', 'Demo controls', 'Move the clock, switch traveler', () => onPick('demo'))}
         <button className="menu-row danger" onClick={() => (sure ? onDelete() : setSure(true))}>
           <Icon name="delete" />
-          <span><b>{sure ? 'Tap again to delete' : isDemo ? 'Hide the sample trip' : 'Delete trip'}</b><small>{isDemo ? 'You can bring it back from the home screen' : 'Removes it from this phone'}</small></span>
+          <span><b>{sure ? 'Tap again to delete' : isSample ? 'Hide the sample trips' : 'Delete trip'}</b><small>{isSample ? 'You can bring them back from the home screen' : 'Removes it from this phone'}</small></span>
         </button>
       </div>
     </Sheet>
@@ -81,13 +83,13 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
   sim: Sim; setSim: (s: Sim) => void; trip: Trip; now: Date; me: string; setMe: (id: string) => void;
   loc: LocState; onReset: () => void; onClose: () => void;
 }) {
-  const local = instantToZoned(now, 'Europe/Vienna').slice(11, 16);
+  const local = instantToZoned(now, DEMO_TZ).slice(11, 16);
   return (
     <Sheet label="Demo controls" title="Demo controls" onClose={onClose}>
       <div className="demo-panel">
-        <p className="help" style={{ fontSize: 14, marginTop: 0 }}>It’s Day 1 and you’ve just landed. Move the clock to watch today’s Belvedere tickets go from on track to at risk.</p>
+        <p className="help" style={{ fontSize: 14, marginTop: 0 }}>It’s Day 2 in Amsterdam. Move the clock to watch today’s Rijksmuseum tickets go from on track to at risk.</p>
         <div className="row">
-          <div className="clock">{local} <span className="clock-sub">Vienna{sim.offsetMin ? ` · +${fmtDuration(sim.offsetMin)}` : ' · now'}</span></div>
+          <div className="clock">{local} <span className="clock-sub">{DEMO_CITY}{sim.offsetMin ? ` · +${fmtDuration(sim.offsetMin)}` : ' · now'}</span></div>
           <input className="range" type="range" min={0} max={150} step={5} value={sim.offsetMin}
             onChange={e => setSim({ ...sim, offsetMin: Number(e.target.value) })} aria-label="Shift time forward" />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -114,7 +116,7 @@ export function DemoPanel({ sim, setSim, trip, now, me, setMe, loc, onReset, onC
               </button>
             ))}
           </div>
-          <div className="help">View as Priya and edit the brunch bill to see the approval flow.</div>
+          <div className="help">View as Priya and edit the market lunch bill to see the approval flow.</div>
         </div>
         <button className="btn-line" style={{ marginTop: 22 }} onClick={() => { onReset(); setSim({ offsetMin: 0, location: 'hotel' }); onClose(); }}>
           <Icon name="restart_alt" /> Reset the demo

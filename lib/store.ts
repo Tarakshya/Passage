@@ -7,7 +7,7 @@
 'use client';
 
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
-import { buildDemoTrip, DEMO_TOKEN } from './demo';
+import { buildSampleTrip, DEMO_TOKEN, isSampleToken } from './demo';
 import { applyMutation, type Mutation } from './mutations';
 import { parseTrip } from './schema';
 import type { Trip } from './types';
@@ -50,14 +50,14 @@ export class LocalStore implements TripStore {
 
   async load(token: string): Promise<Trip | null> {
     const saved = readJSON<{ trip: Trip; seededAt: number }>(key(token));
-    if (token === DEMO_TOKEN && (!saved || Date.now() - saved.seededAt > DEMO_MAX_AGE_MS)) {
-      return this.resetDemo();
+    if (isSampleToken(token) && (!saved || Date.now() - saved.seededAt > DEMO_MAX_AGE_MS)) {
+      return this.resetDemo(token);
     }
     return saved?.trip ?? memory[token] ?? null;
   }
 
-  resetDemo(): Trip {
-    const trip = buildDemoTrip(new Date());
+  resetDemo(token: string = DEMO_TOKEN): Trip {
+    const trip = buildSampleTrip(token, new Date())!;
     this.save(trip);
     return trip;
   }
@@ -195,9 +195,9 @@ export function supabaseConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
-/** The demo always runs locally so reviewers can't change it for each other. */
+/** The sample trips always run locally so reviewers can't change it for each other. */
 export function storeFor(token: string): TripStore {
-  if (token === DEMO_TOKEN || !supabaseConfigured()) return localStore();
+  if (isSampleToken(token) || !supabaseConfigured()) return localStore();
   remote ??= new SupabaseStore(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
   return remote;
 }

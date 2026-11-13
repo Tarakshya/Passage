@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { netBalances, rawDebtCount, settlementExpense, settleUp } from '../lib/balances';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 
 const rates = { EUR: 1, INR: 100 };
 

@@ -53,7 +53,7 @@ export function tripDates(trip: Trip): { start: string; end: string; nights: num
   return { start, end, nights: daysBetween(start, end) };
 }
 
-/** "21 days out", "Day 3 of 13", or "Ended". */
+/** "21 days out", "Day 3 of 13", or "Completed". */
 export function tripCountdown(trip: Trip, now: Date): string {
   const dates = tripDates(trip);
   if (!dates) return 'No dates yet';
@@ -62,7 +62,7 @@ export function tripCountdown(trip: Trip, now: Date): string {
   const toStart = daysBetween(today, dates.start);
   if (toStart > 0) return toStart === 1 ? 'Tomorrow' : `${toStart} days out`;
   const day = daysBetween(dates.start, today) + 1;
-  if (day > dates.nights + 1) return 'Ended';
+  if (day > dates.nights + 1) return 'Completed';
   return `Day ${day} of ${dates.nights + 1}`;
 }
 
