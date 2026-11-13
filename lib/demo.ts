@@ -1,7 +1,7 @@
 // The sample trips. Every date is relative to "now", so they never go stale:
 //
-// - Amsterdam–Hvar (token "demo"), T and GB, is always in progress: it's Day 2 in Amsterdam, and Rijksmuseum
-//   tickets start in ~75 minutes — the booking the demo clock walks from on track to at risk.
+// - Amsterdam–Hvar (token "demo"), T and GB, is always in progress: it's Day 2 in Amsterdam, and the next booking
+//   (the Rijksmuseum, by day) starts in ~75 minutes — the booking the demo clock walks from on track to at risk.
 //   One leg (Milan → Split → Hvar) is still to book, so the "To book" flow is visible.
 // - Austria–Croatia (token "demo-past"), T, Sam and Priya, ended a few weeks ago: everything booked, everyone
 //   settled up. It shows what a finished trip looks like.
@@ -74,10 +74,29 @@ function expense(e: Partial<Expense> & Pick<Expense, 'id' | 'title' | 'amount' |
   return { currency: 'EUR', splitWith: ALL, autoScanned: false, pendingAmount: null, pendingBy: null, createdAt: now.toISOString(), ...e };
 }
 
+/**
+ * The booking that's about 75 minutes away, fitting the time of day in Amsterdam: a museum in the
+ * day, dinner in the evening, a late jazz set at night, a sunrise bike tour before dawn. All are a
+ * few minutes' walk from the hotel, so the demo clock's steps (+55 leave soon, +70 at risk,
+ * +90 missed) land the same way whichever it is.
+ */
+function liveBooking(start: string): Reservation {
+  const h = Number(start.slice(11, 13));
+  const base = { id: 'r-live', stopId: 'ams', startLocal: start, startTz: AMS, endTz: AMS } as const;
+  if (h >= 9 && h < 17) return res({ ...base, type: 'activity', title: 'Rijksmuseum · The Night Watch', endLocal: addMinutesLocal(start, 150),
+    address: 'Museumstraat 1, 1071 XX Amsterdam', lat: 52.36, lng: 4.8852, seat: '2 adult tickets, timed entry', confirmation: 'RM-20931-7741', price: 5000, currency: 'EUR' });
+  if (h >= 17 && h < 22) return res({ ...base, type: 'dinner', title: 'Restaurant Spiegel', endLocal: addMinutesLocal(start, 120),
+    address: 'Kerkstraat 92, 1017 GP Amsterdam', lat: 52.364, lng: 4.8895, seat: 'Table for 2, canal side', confirmation: 'RS-2207', source: 'manual' });
+  if (h >= 22 || h < 2) return res({ ...base, type: 'activity', title: 'Jazz Café Alto · Late set', endLocal: addMinutesLocal(start, 90),
+    address: 'Korte Leidsedwarsstraat 115, Amsterdam', lat: 52.3638, lng: 4.8818, seat: '2 standing tickets', confirmation: 'JA-5512', price: 3000, currency: 'EUR' });
+  return res({ ...base, type: 'activity', title: 'Sunrise canal bike tour', endLocal: addMinutesLocal(start, 120),
+    address: 'Meet at Museumbrug, Amsterdam', lat: 52.3615, lng: 4.885, seat: '2 bikes, guide included', confirmation: 'SB-7730', price: 7000, currency: 'EUR' });
+}
+
 export function buildDemoTrip(now: Date = new Date()): Trip {
   const d0 = todayIn(AMS, now);
   const d = (n: number) => addDays(d0, n);
-  const rijks = inMinutes(now, 75, AMS);
+  const live = liveBooking(inMinutes(now, 75, AMS));
 
   const reservations: Reservation[] = [
     res({
@@ -92,12 +111,7 @@ export function buildDemoTrip(now: Date = new Date()): Trip {
       address: 'Spiegelgracht 14, 1017 JR Amsterdam', lat: 52.3627, lng: 4.8879,
       seat: 'Canal-view double, breakfast included', confirmation: 'HCR-58210447', price: 110400, currency: 'EUR', cancelBy: `${d(-8)}T23:59`,
     }),
-    res({
-      id: 'r-rijks', type: 'activity', stopId: 'ams', title: 'Rijksmuseum · The Night Watch',
-      startLocal: rijks, startTz: AMS, endLocal: addMinutesLocal(rijks, 150), endTz: AMS,
-      address: 'Museumstraat 1, 1071 XX Amsterdam', lat: 52.36, lng: 4.8852,
-      seat: '2 adult tickets, timed entry', confirmation: 'RM-20931-7741', price: 5000, currency: 'EUR',
-    }),
+    live,
     res({
       id: 'r-lepel', type: 'dinner', stopId: 'ams', title: 'De Gouden Lepel',
       startLocal: `${d(2)}T20:00`, startTz: AMS, endLocal: `${d(2)}T22:00`, endTz: AMS,
@@ -178,7 +192,7 @@ export function buildDemoTrip(now: Date = new Date()): Trip {
     expenses: [
       paidBooking(by('r-out'), 'you', now, 'transit', DUO),
       paidBooking(by('r-spiegel'), 'gb', now, 'stay', DUO),
-      paidBooking(by('r-rijks'), 'gb', now, 'activity', DUO),
+      ...(live.price ? [paidBooking(live, 'gb', now, live.type === 'dinner' ? 'food' : 'activity', DUO)] : []),
       paidBooking(by('r-cruise'), 'you', now, 'activity', DUO),
       paidBooking(by('r-train'), 'gb', now, 'transit', DUO),
       paidBooking(by('r-sablon'), 'gb', now, 'stay', DUO),

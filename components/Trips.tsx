@@ -102,6 +102,34 @@ function Swipe({ children, onDelete, name }: { children: ReactNode; onDelete: ()
 }
 
 /** Add to Home Screen: Android/desktop Chrome get the browser's own install prompt; iPhone gets the two taps it needs. */
+/** The "How it works" tips: on an empty home screen, and behind the link under the sample trips. */
+function Tips({ installed, onDownload }: { installed: boolean; onDownload: () => void }) {
+  const download = onDownload;
+  return (
+    <ol className="tips">
+      <li><b className="c-gold">Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
+      <li><b className="c-lagoon">Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
+      <li><b className="c-lagoon">Tap a city</b> to see everything booked there, plus places curated for your interests.</li>
+      <li><b><span className="late">Next Up</span> warns when you’re running late.</b></li>
+      <li><b className="c-lagoon">Log what you pay in the Ledger.</b> Scan a receipt; Passage works out who owes whom.</li>
+      {installed
+        ? <li><b className="c-lagoon">It’s on your home screen.</b> Passage opens like an app and works offline.</li>
+        : <li><button className="tip-link" onClick={download}>Download</button> Passage to your home screen. It opens like an app and works offline.</li>}
+    </ol>
+  );
+}
+
+function HowItWorksSheet({ installed, onDownload, onClose }: { installed: boolean; onDownload: () => void; onClose: () => void }) {
+  return (
+    <Sheet label="How it works" title="How it works" onClose={onClose}>
+      <div className="first-trip in-sheet">
+        <Tips installed={installed} onDownload={onDownload} />
+        <p className="sheet-tip">On the sample trip, tap <b>Demo</b> at the top to move the clock and watch Next Up warn you you&rsquo;re running late.</p>
+      </div>
+    </Sheet>
+  );
+}
+
 function InstallSheet({ onClose }: { onClose: () => void }) {
   const ios = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
   return (
@@ -141,6 +169,7 @@ export function Trips({ clean = false }: { clean?: boolean }) {
   const router = useRouter();
   const now = useNow();
   const [list, setList] = useState<TripSummary[] | null>(null);
+  const [how, setHow] = useState(false);
   const [creating, setCreating] = useState(false);
   const [hideSample, setHideSample] = useState(clean);
   const [toast, setToast] = useState<{ msg: string; undo?: () => void } | null>(null);
@@ -208,23 +237,15 @@ export function Trips({ clean = false }: { clean?: boolean }) {
     <main className="app">
       <div className="screen home">
         <div className="wordmark">Passage</div>
-        <h1 className="screen-title">{timeOfDay(now)}.</h1>
+        {/* The greeting uses the phone's clock, so it's filled in after load (the server's clock can disagree). */}
+        <h1 className="screen-title">{list ? `${timeOfDay(now)}.` : '\u00a0'}</h1>
         {!empty && <p className="screen-sub">{sorted.length ? 'Your trips' : 'Two sample trips to explore, one under way and one finished. Or plan your own.'}</p>}
 
         {!list && <div className="skeleton" style={{ height: 150, marginTop: 22 }} />}
         {empty ? (
           <div className="first-trip">
             <h2 className="how">How it works</h2>
-            <ol className="tips">
-              <li><b className="c-gold">Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
-              <li><b className="c-lagoon">Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
-              <li><b className="c-lagoon">Tap a city</b> to see everything booked there, plus places curated for your interests.</li>
-              <li><b><span className="late">Next Up</span> warns when you’re running late.</b></li>
-              <li><b className="c-lagoon">Log what you pay in the Ledger.</b> Scan a receipt; Passage works out who owes whom.</li>
-              {installed
-                ? <li><b className="c-lagoon">It’s on your home screen.</b> Passage opens like an app and works offline.</li>
-                : <li><button className="tip-link" onClick={download}>Download</button> Passage to your home screen. It opens like an app and works offline.</li>}
-            </ol>
+            <Tips installed={installed} onDownload={download} />
             <button className="btn-primary go" onClick={() => setCreating(true)}>Where to next?<Icon name="arrow_forward" /></button>
           </div>
         ) : (
@@ -239,10 +260,12 @@ export function Trips({ clean = false }: { clean?: boolean }) {
               ))}
             </div>
             <button className="add-row" onClick={() => setCreating(true)}><Icon name="add" />Plan a new trip</button>
+            <button className="quiet-link" onClick={() => setHow(true)}>How it works</button>
           </>
         )}
         {hideSample && list !== null && <button className="quiet-link" onClick={showSample}>See the sample trips</button>}
       </div>
+      {how && <HowItWorksSheet installed={installed} onClose={() => setHow(false)} onDownload={() => { setHow(false); void download(); }} />}
       {install && <InstallSheet onClose={() => setInstall(false)} />}
       {toast && (
         <div className="toast" role="status">
