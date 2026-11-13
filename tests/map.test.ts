@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { project, tilesFor } from '../components/MapView';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 import { mapStop } from '../lib/trip';
 
 describe('static city map', () => {

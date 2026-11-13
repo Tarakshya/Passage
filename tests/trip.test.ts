@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 import { bookingProgress, currentStop, timeline, tripCountdown, tripDates } from '../lib/trip';
 import { liveStatus } from '../lib/live-status';
 import { zonedToInstant } from '../lib/time';

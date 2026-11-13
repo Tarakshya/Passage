@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bookingExpense, expenseIdFor, findDuplicate } from '../lib/booking-ledger';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 
 const trip = buildDemoTrip(new Date('2026-11-11T09:00:00Z'));
 const miiro = trip.reservations.find(r => r.id === 'r-miiro')!;

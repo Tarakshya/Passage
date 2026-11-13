@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { convert, fmtMoney, netBalances, parseMoney, settleUp, splitEvenly, totalsByCurrency } from '../lib/balances';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 
 describe('money', () => {
   it('splits without losing cents', () => {

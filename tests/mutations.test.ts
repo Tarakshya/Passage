@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDemoTrip } from '../lib/demo';
+import { buildDemoTrip } from './fixtures/austria-demo';
 import { applyMutation, approveEdit, editExpense, newToken, rejectEdit } from '../lib/mutations';
 
 const trip = buildDemoTrip(new Date('2026-11-04T09:00:00Z'));

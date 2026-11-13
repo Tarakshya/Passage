@@ -217,9 +217,9 @@ export function App({ token }: { token: string }) {
         {sheet?.kind === 'trip' && <TripForm initial={sheet.initial} canInvite={shared && !trip.isDemo} onSave={saveTrip} onClose={() => setSheet(null)} />}
         {sheet?.kind === 'menu' && (
           <TripMenu onClose={() => setSheet(null)} onPick={k => setSheet(k === 'profile' ? { kind: 'profile', firstTime: false } : k === 'trip' ? { kind: 'trip', initial: trip } : { kind: k })}
-            liveTimes={needsLocation ? () => { setLocPref(true); setSheet(null); } : undefined} isDemo={isDemo}
+            liveTimes={needsLocation ? () => { setLocPref(true); setSheet(null); } : undefined} isDemo={isDemo} isSample={trip.isDemo}
             onDelete={() => {
-              if (isDemo) { try { localStorage.setItem('passage:nosample', '1'); } catch { /* ignore */ } }
+              if (trip.isDemo) { try { localStorage.setItem('passage:nosample', '1'); } catch { /* ignore */ } }
               else forgetTrip(token);
               router.push('/');
             }} />

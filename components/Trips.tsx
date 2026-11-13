@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { buildDemoTrip, DEMO_TOKEN } from '@/lib/demo';
+import { buildDemoTrip, buildPastTrip, isSampleToken } from '@/lib/demo';
 import { placeCode, sortTrips, summaryStatus, ticketRange, timeOfDay, tripSummary, type TripSummary } from '@/lib/home';
 import { forgetTrip, knownTrips, restoreTrip, useNow, useTemp } from '@/lib/hooks';
 import { storeFor } from '@/lib/store';
@@ -130,6 +130,7 @@ function InstallSheet({ onClose }: { onClose: () => void }) {
 interface InstallEvent extends Event { prompt: () => Promise<void> }
 
 const NO_SAMPLE = 'passage:nosample';
+const samples = () => [tripSummary(buildDemoTrip(new Date())), tripSummary(buildPastTrip(new Date()))];
 
 /**
  * `clean` is the /start link: no sample trip, just "plan your first trip". Opening /start once
@@ -168,9 +169,9 @@ export function Trips({ clean = false }: { clean?: boolean }) {
       else hide = localStorage.getItem(NO_SAMPLE) === '1';
     } catch { /* ignore */ }
     setHideSample(hide);
-    // The sample is rebuilt for today so it is always mid-trip.
-    const mine = knownTrips().filter(t => t.token !== DEMO_TOKEN);
-    setList(hide ? mine : [...mine, tripSummary(buildDemoTrip(new Date()))]);
+    // The samples are rebuilt for today: one always mid-trip, one finished a few weeks ago.
+    const mine = knownTrips().filter(t => !isSampleToken(t.token));
+    setList(hide ? mine : [...mine, ...samples()]);
   }, [clean]);
 
   const hideTheSample = () => {
@@ -180,7 +181,7 @@ export function Trips({ clean = false }: { clean?: boolean }) {
   const remove = (t: TripSummary) => {
     if (t.isDemo) {
       hideTheSample();
-      setToast({ msg: 'Sample trip hidden', undo: () => showSample() });
+      setToast({ msg: 'Sample trips hidden', undo: () => showSample() });
       return;
     }
     const snap = forgetTrip(t.token);
@@ -191,12 +192,13 @@ export function Trips({ clean = false }: { clean?: boolean }) {
   const showSample = () => {
     try { localStorage.removeItem(NO_SAMPLE); } catch { /* ignore */ }
     setHideSample(false);
-    setList(l => [...(l ?? []).filter(t => !t.isDemo), tripSummary(buildDemoTrip(new Date()))]);
+    setList(l => [...(l ?? []).filter(t => !t.isDemo), ...samples()]);
     if (clean) router.replace('/');
   };
 
   const sorted = list ? sortTrips(list.filter(t => !t.isDemo), now) : [];
-  const demo = hideSample ? undefined : list?.find(t => t.isDemo);
+  const demos = hideSample || !list ? [] : sortTrips(list.filter(t => t.isDemo), now);
+  const demo = demos[0];
   const live = sorted.find(t => summaryStatus(t, now).phase === 'now') ?? (demo && !sorted.length ? demo : undefined);
   const city = live ? summaryStatus(live, now).city : null;
   const temp = useTemp(city);
@@ -207,7 +209,7 @@ export function Trips({ clean = false }: { clean?: boolean }) {
       <div className="screen home">
         <div className="wordmark">Passage</div>
         <h1 className="screen-title">{timeOfDay(now)}.</h1>
-        {!empty && <p className="screen-sub">{sorted.length ? 'Your trips' : 'Here’s a sample trip to explore, or plan your own.'}</p>}
+        {!empty && <p className="screen-sub">{sorted.length ? 'Your trips' : 'Two sample trips to explore, one under way and one finished. Or plan your own.'}</p>}
 
         {!list && <div className="skeleton" style={{ height: 150, marginTop: 22 }} />}
         {empty ? (
@@ -231,13 +233,15 @@ export function Trips({ clean = false }: { clean?: boolean }) {
               {sorted.map(t => (
                 <Swipe key={t.token} name={t.name} onDelete={() => remove(t)}><TripCard s={t} now={now} temp={t === live ? temp : null} /></Swipe>
               ))}
-              {demo && sorted.length > 0 && <div className="lbl" style={{ margin: '10px 2px -4px' }}><span>Sample trip</span></div>}
-              {demo && <Swipe name="the sample trip" onDelete={() => remove(demo)}><TripCard s={demo} now={now} temp={demo === live ? temp : null} /></Swipe>}
+              {demo && sorted.length > 0 && <div className="lbl" style={{ margin: '10px 2px -4px' }}><span>Sample trips</span></div>}
+              {demos.map(s => (
+                <Swipe key={s.token} name="the sample trips" onDelete={() => remove(s)}><TripCard s={s} now={now} temp={s === live ? temp : null} /></Swipe>
+              ))}
             </div>
             <button className="add-row" onClick={() => setCreating(true)}><Icon name="add" />Plan a new trip</button>
           </>
         )}
-        {hideSample && list !== null && <button className="quiet-link" onClick={showSample}>See a sample trip</button>}
+        {hideSample && list !== null && <button className="quiet-link" onClick={showSample}>See the sample trips</button>}
       </div>
       {install && <InstallSheet onClose={() => setInstall(false)} />}
       {toast && (
