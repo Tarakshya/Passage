@@ -50,8 +50,14 @@ export class LocalStore implements TripStore {
 
   async load(token: string): Promise<Trip | null> {
     const saved = readJSON<{ trip: Trip; seededAt: number }>(key(token));
-    if (isSampleToken(token) && (!saved || Date.now() - saved.seededAt > DEMO_MAX_AGE_MS)) {
-      return this.resetDemo(token);
+    if (isSampleToken(token)) {
+      // Re-seed when it's old, or when the sample itself has changed since this phone saved it
+      // (e.g. the old Austria sample still sitting under "demo" after the Amsterdam release).
+      const fresh = buildSampleTrip(token, new Date())!;
+      if (!saved || Date.now() - saved.seededAt > DEMO_MAX_AGE_MS || saved.trip.name !== fresh.name) {
+        this.save(fresh);
+        return fresh;
+      }
     }
     return saved?.trip ?? memory[token] ?? null;
   }
