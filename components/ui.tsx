@@ -116,7 +116,6 @@ export function ArrivedStamp({ code, date }: { code: string; date: string }) {
       <span className="vs-k">Arrived</span>
       <span className="vs-code">{code}</span>
       <span className="vs-date">{when}</span>
-      <span className="vs-k">Passage</span>
     </div>
   );
 }

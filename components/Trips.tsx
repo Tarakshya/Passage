@@ -109,7 +109,7 @@ function Tips({ installed, onDownload }: { installed: boolean; onDownload: () =>
   const download = onDownload;
   return (
     <>
-    <p className="ai-line"><b>AI does the busywork:</b> it reads your bookings and receipts, and researches each city around what you love. You check everything before it’s saved.</p>
+    <p className="ai-line"><b>Passage does the busywork:</b> it reads your bookings and receipts, and researches each city around what you love. You check everything before it’s saved, booked or expensed.</p>
     <ol className="tips">
       <li><b className="c-gold">Start with your stops.</b> Add each city and your dates. Passage lays out the route and shows what’s left to book.</li>
       <li><b className="c-lagoon">Screenshot your bookings.</b> Tap + and add a confirmation screenshot or PDF. Passage fills in the details; you confirm and save.</li>
@@ -126,7 +126,7 @@ function Tips({ installed, onDownload }: { installed: boolean; onDownload: () =>
 
 function HowItWorksSheet({ installed, onDownload, onClose }: { installed: boolean; onDownload: () => void; onClose: () => void }) {
   return (
-    <Sheet label="How it works" title="How it works" onClose={onClose}>
+    <Sheet label="How it works" title="How it works" onClose={onClose} className="how-sheet">
       <div className="first-trip in-sheet">
         <Tips installed={installed} onDownload={onDownload} />
         <p className="sheet-tip">On the sample trip, tap <b>Demo</b> at the top to move the clock and watch Next Up warn you you&rsquo;re running late.</p>

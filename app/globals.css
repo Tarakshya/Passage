@@ -179,7 +179,7 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .snap { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--slate); background: rgba(15, 22, 38, .55); color: var(--cream-2); display: flex; align-items: center; justify-content: center; }
 .snap .ms { font-size: 17px; }
 
-.legline { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 2px 4px 2px 30px; text-align: left; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.legline { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 2px 4px 2px 27px; text-align: left; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
 .legline .tx .ms { font-size: 15px; margin-right: 4px; vertical-align: -2px; }
 .legline .dash { width: 2px; height: 20px; border-left: 2px dotted var(--slate); flex: 0 0 auto; align-self: center; }
 .legline .tx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
@@ -600,19 +600,18 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .ticket { position: relative; }
 .trip-card.past .status, .tk-status.done { color: var(--alert); }
 .visa-stamp {
-  /* Straddles the tear line, half on the paper and half on the stub, like a real passport stamp. */
-  position: absolute; bottom: 7px; right: 42px; z-index: 2; pointer-events: none;
-  display: flex; flex-direction: column; align-items: center; gap: 1px; width: 78px;
-  padding: 5px 5px 5px; border: 2px solid var(--navy-ink); border-radius: 8px;
+  /* Bottom-right of the paper part of a finished trip's ticket, like an arrival stamp. */
+  position: absolute; bottom: 5px; right: 96px; z-index: 2; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; width: 76px;
+  padding: 5px 5px 4px; border: 2px solid var(--navy-ink); border-radius: 8px;
   outline: 1px solid var(--navy-ink); outline-offset: -6px;
-  color: var(--navy-ink); transform: rotate(-8deg); opacity: .88;
+  color: var(--navy-ink); transform: rotate(-8deg); opacity: .85;
   font-family: var(--sans); text-transform: uppercase; line-height: 1; white-space: nowrap;
 }
-.trip-card.past .stub, .ticket.past .stub { justify-content: flex-start; padding-top: 12px; }
 .ticket.past .tk-tap { display: none; }
 .visa-stamp .vs-k { font-size: 8px; font-weight: 600; letter-spacing: .18em; }
-.visa-stamp .vs-code { font-family: var(--serif); font-size: 23px; font-weight: 600; letter-spacing: .04em; margin: 2px 0 1px; }
-.visa-stamp .vs-date { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 3px 2px 3px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+.visa-stamp .vs-code { font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: .04em; margin: 2px 0 1px; }
+.visa-stamp .vs-date { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 3px 2px 1px; border-top: 1px solid currentColor; }
 
 /* The route on the trip's boarding pass */
 .ticket .tk-codes { margin: -4px 0 10px; padding-right: 0; }
@@ -622,3 +621,13 @@ button.stamp::after { content: ''; position: absolute; inset: -10px -6px; }
 .how-link { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 22px auto 0; min-height: 48px; padding: 0 16px;
   font-size: 16px; font-weight: 500; color: var(--lagoon); }
 .how-link .ms { font-size: 20px; }
+
+/* The dotted line below each transport icon ends in a tiny arrow: the way the trip flows */
+.legline.transport .mode::after {
+  height: 14px; width: 8px; border-left: 0; transform: translateX(-50%);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='14' viewBox='0 0 8 14'%3E%3Cpath d='M4 0v2M4 4v2M4 8v1.5' stroke='%23394865' stroke-width='2'/%3E%3Cpath d='M1 9.5 4 13l3-3.5' fill='none' stroke='%235A6A88' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center top;
+}
+
+/* How it works: centred */
+.how-sheet .sheet-head h2 { flex: 1; text-align: center; padding-left: 50px; } /* balances the close button */
+.first-trip .how { text-align: center; }
