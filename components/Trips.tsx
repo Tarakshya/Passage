@@ -45,10 +45,9 @@ function TripCard({ s, now, temp }: { s: TripSummary; now: Date; temp: number | 
           {s.crew.length > 0 && <div>Crew<b>{s.crew.length}</b></div>}
         </div>
       </div>
-      {/* A finished trip: the stub is stamped instead of counting bookings. */}
-      {st.phase === 'past' && last ? (
-        <div className="stub stamped"><ArrivedStamp code={placeCode(s.home ?? last.name)} date={last.depart} /></div>
-      ) : s.total > 0 && (
+      {/* A finished trip gets an arrival stamp on the paper part of the ticket. */}
+      {st.phase === 'past' && last && <ArrivedStamp code={placeCode(s.home ?? last.name)} date={last.depart} />}
+      {s.total > 0 && (
         <div className="stub">
           <small>Booked</small>
           <div className="big">{s.booked}/{s.total}</div>
@@ -266,7 +265,7 @@ export function Trips({ clean = false }: { clean?: boolean }) {
               ))}
             </div>
             <button className="add-row" onClick={() => setCreating(true)}><Icon name="add" />Plan a new trip</button>
-            <button className="quiet-link" onClick={() => setHow(true)}>How it works</button>
+            <button className="how-link" onClick={() => setHow(true)}><Icon name="info" />How it works</button>
           </>
         )}
         {hideSample && list !== null && <button className="quiet-link" onClick={showSample}>See the sample trips</button>}

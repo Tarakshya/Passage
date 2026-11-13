@@ -1,6 +1,6 @@
 'use client';
 
-import { placeCode, shortCountdown, ticketRange } from '@/lib/home';
+import { placeCode, routeCodes, shortCountdown, ticketRange } from '@/lib/home';
 import { klookForLeg, withAid } from '@/lib/klook';
 import type { LiveStatus } from '@/lib/live-status';
 import { instantToZoned, fmtTime, fmtDuration } from '@/lib/time';
@@ -71,6 +71,7 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
   const current = currentStop(trip, now);
   const left = prog.total - prog.booked;
   const done = tripCountdown(trip, now) === 'Completed';
+  const route = routeCodes(trip, now);
   return (
     // The whole boarding pass is the switch: tap it to open the itinerary, tap again to fold it.
     <section className={`ticket tappable ${expanded ? 'open' : ''}`} role="button" tabIndex={0} aria-expanded={expanded}
@@ -80,26 +81,26 @@ export function Ticket({ trip, now, expanded, onToggle }: { trip: Trip; now: Dat
         {city && <div className="tk-map"><MapView center={{ lat: city.lat, lng: city.lng }} zoom={12} tint={false} /></div>}
         <div className={`tk-status ${done ? 'done' : ''}`}>{tripCountdown(trip, now)}{city && current ? ` · ${city.name}` : ''}</div>
         <h2>{trip.name}</h2>
+        {/* The route, starting from home: cities already behind you are crossed off, today's is underlined. */}
+        <div className="codes tk-codes" aria-label={`Route: ${route.codes.join(', ')}`}>
+          {route.codes.map((c, i) => (
+            <span key={i}>{i > 0 && <i aria-hidden="true">·</i>}<span className={route.at > 0 && i < route.at ? 'done' : route.at > 0 && i === route.at ? 'at' : ''}>{c}</span></span>
+          ))}
+        </div>
         <div className="meta">
           {dates && <div>Dates<b>{ticketRange(dates.start, dates.end)}</b></div>}
           {dates && <div>Nights<b>{dates.nights}</b></div>}
           <div>Crew<b>{trip.travelers.length <= 4 ? trip.travelers.map(t => t.name.slice(0, 1).toUpperCase()).join(' · ') : trip.travelers.length}</b></div>
         </div>
       </div>
-      {done && dates ? (
-        // A finished trip: the stub is stamped instead of counting bookings.
-        <div className="stub stamped">
-          <ArrivedStamp code={placeCode(trip.home.name)} date={dates.end} />
-          <div className="tk-tap" aria-hidden="true">{expanded ? 'Tap to fold' : 'Tap to open'}</div>
-        </div>
-      ) : (
-        <div className="stub" aria-label={`${prog.booked} of ${prog.total} booked`}>
-          <small>Booked</small>
-          <div className="big">{prog.booked}/{prog.total}</div>
-          <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
-          <div className="tk-tap" aria-hidden="true">{expanded ? 'Tap to fold' : 'Tap to open'}</div>
-        </div>
-      )}
+      {/* A finished trip gets an arrival stamp on the paper part of the ticket. */}
+      {done && dates && <ArrivedStamp code={placeCode(trip.home.name)} date={dates.end} />}
+      <div className="stub" aria-label={`${prog.booked} of ${prog.total} booked`}>
+        <small>Booked</small>
+        <div className="big">{prog.booked}/{prog.total}</div>
+        <div className="togo">{left > 0 ? `${left} to go` : 'All set'}</div>
+        <div className="tk-tap" aria-hidden="true">{expanded ? 'Tap to fold' : 'Tap to open'}</div>
+      </div>
     </section>
   );
 }
