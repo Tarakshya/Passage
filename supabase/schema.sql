@@ -155,3 +155,26 @@ end $$;
 
 revoke all on function get_trip(text), create_trip(jsonb), apply_mutation(text, jsonb), take_quota(text, text, int) from public;
 grant execute on function get_trip(text), create_trip(jsonb), apply_mutation(text, jsonb), take_quota(text, text, int) to anon, authenticated;
+
+-- Opens of tagged links (e.g. https://…/?from=vivek), so T can see when someone she sent the app
+-- to opened it. Only the tag she chose, the page and a rough device are kept: no IPs, no names.
+create table if not exists visits (
+  id bigint generated always as identity primary key,
+  tag text not null check (tag ~ '^[a-z0-9-]{1,32}$'),
+  path text not null default '/',
+  device text,
+  at timestamptz not null default now()
+);
+alter table visits enable row level security;
+
+create or replace function log_visit(p_tag text, p_path text, p_device text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if p_tag is null or p_tag !~ '^[a-z0-9-]{1,32}$' then return; end if;
+  -- At most 50 a day per tag, so the table can't be flooded.
+  if (select count(*) from visits where tag = p_tag and at > now() - interval '1 day') >= 50 then return; end if;
+  insert into visits (tag, path, device) values (p_tag, left(coalesce(p_path, '/'), 80), left(p_device, 20));
+end $$;
+
+revoke all on function log_visit(text, text, text) from public;
+grant execute on function log_visit(text, text, text) to anon, authenticated;
