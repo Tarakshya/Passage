@@ -44,7 +44,9 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
   const firstStop = stops[0];
   const [type, setType] = useState<ReservationType>(initial?.type ?? prefill.type ?? (prefill.legId ? trip.legs.find(l => l.id === prefill.legId)?.mode ?? 'train' : 'hotel'));
   const transit = TRANSIT_TYPES.has(type);
-  const [stopId, setStopId] = useState<string>(initial?.stopId ?? prefill.stopId ?? firstStop?.id ?? '');
+  // With no city given, start from where you are today (or the first stop before the trip).
+  const hereStop = stops.find(s => { const d = todayIn(s.tz); return s.arrive <= d && d < s.depart; });
+  const [stopId, setStopId] = useState<string>(initial?.stopId ?? prefill.stopId ?? hereStop?.id ?? firstStop?.id ?? '');
   const [legId, setLegId] = useState<string>(initial?.legId ?? prefill.legId ?? trip.legs[0]?.id ?? '');
   const stop = stops.find(s => s.id === stopId);
   const leg = trip.legs.find(l => l.id === legId);
@@ -52,7 +54,10 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
   const defaultStart = () => {
     if (TRANSIT_TYPES.has(type)) return { d: (trip.stops.find(s => s.id === leg?.from)?.depart ?? trip.stops.find(s => s.id === leg?.to)?.arrive ?? ''), t: '' };
     if (type === 'hotel') return { d: stop?.arrive ?? '', t: '15:00' };
-    return { d: stop?.arrive ?? '', t: type === 'dinner' ? '19:30' : '10:00' };
+    // Plans start on your first day in that city, or today if you're already there.
+    const today = stop ? todayIn(stop.tz) : '';
+    const d = stop && stop.arrive <= today && today < stop.depart ? today : stop?.arrive ?? '';
+    return { d, t: type === 'dinner' ? '19:30' : '10:00' };
   };
   const [startD, setStartD] = useState(initial?.startLocal.slice(0, 10) ?? defaultStart().d);
   const [startT, setStartT] = useState(initial?.startLocal.slice(11, 16) ?? defaultStart().t);
@@ -76,6 +81,24 @@ export function ReservationSheet({ trip, initial, prefill, onSave, onDelete, onC
   const [tried, setTried] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const editing = Boolean(initial);
+
+  // When the city (or the journey) changes on a new booking, move the dates there: e.g. picking
+  // Hvar while you're in Amsterdam starts the calendar on your first day in Hvar. Dates that
+  // already fall within that city's stay are left alone. No limits are set on the date boxes,
+  // so earlier or later dates can still be picked if the trip changes.
+  const lastPlace = useRef(`${stopId}|${legId}`);
+  useEffect(() => {
+    const key = `${stopId}|${legId}`;
+    if (editing || lastPlace.current === key || source === 'scan') { lastPlace.current = key; return; }
+    lastPlace.current = key;
+    const inStay = !transit && stop && startD >= stop.arrive && startD <= stop.depart;
+    if (inStay) return;
+    const d = defaultStart();
+    setStartD(d.d);
+    if (!startT || transit) setStartT(d.t);
+    if (type === 'hotel') { setEndD(stop?.depart ?? ''); setEndT('11:00'); } else if (endD) setEndD('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopId, legId]);
 
   // When the type changes on a new booking, re-seed the default dates so they make sense.
   const lastType = useRef(type);
