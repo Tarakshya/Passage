@@ -146,3 +146,13 @@ export const CURRENCY_SYMBOL: Record<Currency, string> = {
 export const CURRENCY_DECIMALS: Record<Currency, number> = {
   EUR: 2, INR: 2, USD: 2, GBP: 2, HRK: 2, CHF: 2, JPY: 0,
 };
+
+/**
+ * Where the server keeps a traveler's picks for a city (recs_cache): stop, traveler and a short
+ * fingerprint of their interests and link, so changed interests never get old picks.
+ */
+export function recsCacheKey(stopId: string, travelerId: string, interests: string[], link: string | null): string {
+  let h = 0x811c9dc5;
+  for (const ch of `${interests.join('|')}#${link ?? ''}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return `${stopId}:${travelerId}:${h.toString(16)}`;
+}

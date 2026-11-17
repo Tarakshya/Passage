@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { withAid } from '@/lib/klook';
-import { fetchRecs, isStale } from '@/lib/recs-client';
+import { cacheKeyFor, fetchRecs, isStale, pendingSince, savedRecs, setPending } from '@/lib/recs-client';
 import type { RecSet, Stop, Trip } from '@/lib/types';
 import { recKey } from '@/lib/types';
 import { Icon } from './ui';
@@ -18,12 +18,35 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
 }) {
   const [who, setWho] = useState(me);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(false); // a search started before the app was closed
   const [error, setError] = useState<string | null>(null);
   const t = trip.travelers.find(x => x.id === who) ?? trip.travelers[0];
   const set = trip.recs?.[recKey(stop.id, t.id)];
   const ready = (t.profile?.interests.length ?? 0) > 0;
   const mine = t.id === me;
   const hasKlook = Boolean(set?.items.some(r => r.klook));
+
+  // Picks are saved by the server as soon as they're ready. When the city opens, collect any that
+  // arrived while the app was closed, and if a search was still running, keep waiting for it.
+  const key = cacheKeyFor(stop, t);
+  const have = set?.generatedAt ?? '';
+  useEffect(() => {
+    if (busy) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const since = pendingSince(trip.token, key);
+    if (set && !since) return;
+    const check = async () => {
+      const got = await savedRecs(trip.token, key);
+      if (!alive) return;
+      if (got && got.generatedAt > have) { setPending(trip.token, key, false); setWaiting(false); onSave(got); return; }
+      const s = pendingSince(trip.token, key);
+      if (s) { setWaiting(true); timer = setTimeout(check, 5000); } else setWaiting(false);
+    };
+    void check();
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, have, busy]);
 
   async function run() {
     setBusy(true);
@@ -62,7 +85,7 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
             {mine && <button onClick={onEditProfile} aria-label="Edit your interests">Edit</button>}
           </p>
 
-          {set && !busy && (
+          {set && !busy && !waiting && (
             <>
               {isStale(set, t) && (
                 <div className="scan-note warn"><Icon name="info" fill /><span>{mine ? 'Your' : `${t.name}’s`} interests changed since these were picked. Refresh for new ones.</span></div>
@@ -89,7 +112,7 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
             </>
           )}
 
-          {busy && (
+          {(busy || waiting) && (
             <div className="rec-busy" role="status">
               <Icon name="progress_activity" className="spin" />
               <span>Looking around {stop.name} for {mine ? 'you' : t.name}… this can take up to a minute.</span>
@@ -97,12 +120,12 @@ export function Recs({ trip, stop, me, onSave, onEditProfile }: {
           )}
           {error && <div className="scan-note bad" role="alert" style={{ marginTop: 12 }}><Icon name="error" fill /><span>{error}</span></div>}
 
-          {!busy && (
+          {!busy && !waiting && (
             <button className={set ? 'btn-line' : 'btn-primary'} style={{ marginTop: 12 }} onClick={run}>
               {set ? 'Refresh picks' : `Find things for ${mine ? 'you' : t.name} in ${stop.name}`}
             </button>
           )}
-          {set && !busy && (
+          {set && !busy && !waiting && (
             <p className="credit">
               {researched(set.generatedAt)} from the web by Passage. Check before you go.
               {hasKlook && <><br />Klook prices as seen that day; they change.</>}

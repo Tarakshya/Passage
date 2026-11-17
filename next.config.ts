@@ -5,8 +5,9 @@ const csp = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
-  "img-src 'self' data: blob: https://tile.openstreetmap.org",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://tile.openstreetmap.org https://photon.komoot.io https://api.open-meteo.com",
+  // upload.wikimedia.org / en.wikipedia.org: the city photo at the top of a city's plans.
+  "img-src 'self' data: blob: https://tile.openstreetmap.org https://upload.wikimedia.org",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://tile.openstreetmap.org https://photon.komoot.io https://api.open-meteo.com https://en.wikipedia.org",
   "worker-src 'self'",
   "frame-ancestors 'none'",
 ].join('; ');
