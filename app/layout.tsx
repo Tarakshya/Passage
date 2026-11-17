@@ -8,6 +8,8 @@ import '@fontsource/jost/latin-ext-400.css';
 import './globals.css';
 import { RegisterSW } from '@/components/RegisterSW';
 import { ReviewNotes } from '@/components/ReviewNotes';
+import { VisitTag } from '@/components/VisitTag';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'Passage',
@@ -32,6 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <RegisterSW />
         <ReviewNotes />
+        <VisitTag />
+        {/* Anonymous visit counts in the Vercel dashboard (no cookies, no personal data). */}
+        <Analytics />
       </body>
     </html>
   );
