@@ -78,3 +78,14 @@ describe('the demo clock', () => {
     }
   });
 });
+
+describe('where saved city picks are kept', () => {
+  it('changes when the interests change, so new interests never get old picks', async () => {
+    const { recsCacheKey } = await import('../lib/types');
+    const a = recsCacheKey('hvr', 'you', ['Coffee houses', 'Modern art'], null);
+    expect(a).toBe(recsCacheKey('hvr', 'you', ['Coffee houses', 'Modern art'], null));
+    expect(a).not.toBe(recsCacheKey('hvr', 'you', ['Coffee houses', 'Jazz'], null));
+    expect(a).not.toBe(recsCacheKey('hvr', 'gb', ['Coffee houses', 'Modern art'], null));
+    expect(a.startsWith('hvr:you:')).toBe(true);
+  });
+});

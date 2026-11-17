@@ -178,3 +178,40 @@ end $$;
 
 revoke all on function log_visit(text, text, text) from public;
 grant execute on function log_visit(text, text, text) to anon, authenticated;
+
+-- City recommendations, saved by the server as soon as they're ready, so they aren't lost when
+-- the phone sleeps or the app closes during the ~1 minute of research. Keyed by trip token and
+-- stop:traveler:interests, so a changed interest list gets fresh picks. Real trips also get the
+-- picks written into the trip itself (like the app's setRecs). Only the server can save (it holds
+-- the secret in app_secrets); anyone with the trip's token can read.
+create table if not exists recs_cache (
+  token text not null,
+  key text not null,
+  set jsonb not null,
+  at timestamptz not null default now(),
+  primary key (token, key)
+);
+create table if not exists app_secrets (name text primary key, value text not null);
+alter table recs_cache enable row level security;
+alter table app_secrets enable row level security;
+
+create or replace function save_recs(p_secret text, p_token text, p_key text, p_set jsonb) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from app_secrets where name = 'recs' and value = p_secret) then return false; end if;
+  insert into recs_cache (token, key, set) values (p_token, p_key, p_set)
+    on conflict (token, key) do update set set = excluded.set, at = now();
+  update trips set data = data || jsonb_build_object('recs',
+      coalesce(data->'recs', '{}'::jsonb) || jsonb_build_object((p_set->>'stopId') || ':' || (p_set->>'travelerId'), p_set)
+    ), updated_at = now()
+    where token = p_token;
+  return true;
+end $$;
+
+create or replace function get_recs(p_token text, p_key text) returns jsonb
+language sql security definer set search_path = public stable as $$
+  select set from recs_cache where token = p_token and key = p_key and at > now() - interval '7 days'
+$$;
+
+revoke all on function save_recs(text, text, text, jsonb), get_recs(text, text) from public;
+grant execute on function save_recs(text, text, text, jsonb), get_recs(text, text) to anon, authenticated;

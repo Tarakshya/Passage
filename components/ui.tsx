@@ -70,7 +70,14 @@ export function Sheet({
     vv?.addEventListener('scroll', fit);
     fit();
     ref.current?.focus({ preventScroll: true });
+    // Where the sheet's top edge sits, for a hero picture that should end right behind it.
+    const sheetEl = ref.current, wrap = sheetEl?.parentElement;
+    const ro = sheetEl && wrap && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => wrap.style.setProperty('--sheet-top', `${wrap.clientHeight - sheetEl.offsetHeight}px`))
+      : null;
+    if (ro && sheetEl) ro.observe(sheetEl);
     return () => {
+      ro?.disconnect();
       document.removeEventListener('keydown', onKey);
       vv?.removeEventListener('resize', fit);
       vv?.removeEventListener('scroll', fit);

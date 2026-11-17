@@ -11,7 +11,7 @@ const { POST } = await import('../app/api/recommend/route');
 const { cleanLink } = await import('../components/ProfileSheet');
 
 const body = (over: Record<string, unknown> = {}) => ({
-  token: 'tok-' + Math.random(), tripName: 'Austria–Croatia',
+  token: 'tok-' + Math.random(), stopId: 'vie', travelerId: 'you', tripName: 'Austria–Croatia',
   traveler: { name: 'Priya', interests: ['Design shops', 'Vegetarian food', 'Live music', 'Photography', 'Markets'], link: 'https://example.com/my-favourite-essay' },
   stop: { name: 'Vienna', country: 'AT', arrive: '2026-11-06', depart: '2026-11-08', lat: 48.2082, lng: 16.3738 },
   stay: { name: 'Miiro Spittelberg', address: 'Kirchberggasse 6, 1070 Wien', lat: 48.2027, lng: 16.3563 },
@@ -60,6 +60,14 @@ describe('/api/recommend', () => {
     const json = await (await POST(req(body()))).json();
     expect(json.items).toHaveLength(5);
     expect(json.items[0].url).toBeNull();
+  });
+
+  it('answers with the full set of picks, ready to save, for that stop and traveler', async () => {
+    create.mockResolvedValue(reply(JSON.stringify({ items: [item('A'), item('B'), item('C'), item('D'), item('E')] })));
+    const json = await (await POST(req(body()))).json();
+    expect(json.set).toMatchObject({ stopId: 'vie', travelerId: 'you', basis: { interests: body().traveler.interests } });
+    expect(json.set.items).toHaveLength(5);
+    expect(json.saved).toBe(false); // no database on the test machine; on Vercel the server saves it
   });
 
   it('keeps Klook details only for real klook.com listings', async () => {

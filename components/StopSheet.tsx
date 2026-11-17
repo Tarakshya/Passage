@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { fmtMoney } from '@/lib/balances';
+import { cityPhoto, type CityPhoto } from '@/lib/city-photo';
 import { fmtDay, fmtDayLabel, fmtTime, zonedToInstant } from '@/lib/time';
 import { countryName, ticketRange } from '@/lib/home';
 import { isTransit } from '@/lib/trip';
@@ -56,6 +58,14 @@ export function StopSheet({ trip, stop, live, me, onClose, onOpen, onAdd, onSave
     .filter(r => r.stopId === stop.id)
     .sort((a, b) => zonedToInstant(a.startLocal, a.startTz).getTime() - zonedToInstant(b.startLocal, b.startTz).getTime());
   const days = [...new Set(mine.map(r => r.startLocal.slice(0, 10)))];
+  // A photo of the city fills the top of the screen down to the plans; the map stays if there isn't one.
+  const [photo, setPhoto] = useState<CityPhoto | null>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void cityPhoto(stop.name, stop.country, countryName(stop.country)).then(p => { if (live) setPhoto(p); });
+    return () => { live = false; };
+  }, [stop.name, stop.country]);
   return (
     <Sheet
       label={`${stop.name} reservations`}
@@ -63,8 +73,16 @@ export function StopSheet({ trip, stop, live, me, onClose, onOpen, onAdd, onSave
       dark
       className="stop-sheet"
       hero={
-        <div className="hero">
+        <div className={`hero ${photo ? 'photo' : ''} ${shown ? 'shown' : ''}`}>
           <MapView center={{ lat: stop.lat, lng: stop.lng }} zoom={13} />
+          {photo && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="city-photo" src={photo.src} alt="" onLoad={() => setShown(true)} onError={() => setPhoto(null)} />
+              <div className="photo-tint" />
+              <a className="photo-credit" href={photo.page} target="_blank" rel="noreferrer">Photo · Wikipedia</a>
+            </>
+          )}
           <div className="title">
             <div className="k">STOP {String(stop.order).padStart(2, '0')} · {ticketRange(stop.arrive, stop.depart)} · {countryName(stop.country).toUpperCase()}</div>
             <h2>{stop.name}</h2>

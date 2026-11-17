@@ -9,6 +9,8 @@ import { takeQuota } from '@/lib/rate-limit';
 import { RECS_MODEL, RECS_SCHEMA, RECS_SYSTEM, RECS_TOOLS, recsUserText } from '@/lib/recommend-prompt';
 import { RecsResultSchema } from '@/lib/schema';
 import { cleanKlookPrice, cleanKlookUrl } from '@/lib/klook';
+import { createClient } from '@supabase/supabase-js';
+import { recsCacheKey, type RecSet } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 90;
@@ -16,6 +18,8 @@ export const maxDuration = 90;
 const str = (max: number) => z.string().max(max);
 const Body = z.object({
   token: str(64).min(4),
+  stopId: str(40).min(1),
+  travelerId: str(40).min(1),
   tripName: str(120),
   traveler: z.object({
     name: str(60),
@@ -37,6 +41,20 @@ function finalJson(content: Anthropic.ContentBlock[]): unknown {
   const end = text.lastIndexOf('}');
   if (start === -1 || end <= start) return null;
   try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
+
+async function saveRecs(token: string, key: string, set: RecSet): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, secret = process.env.RECS_SECRET;
+  if (!url || !anon || !secret) return false;
+  try {
+    const db = createClient(url, anon, { auth: { persistSession: false } });
+    const { data, error } = await db.rpc('save_recs', { p_secret: secret, p_token: token, p_key: key, p_set: set });
+    if (error) console.error(JSON.stringify({ event: 'recs_save_error', message: error.message }));
+    return data === true;
+  } catch (e) {
+    console.error(JSON.stringify({ event: 'recs_save_error', message: String(e) }));
+    return false;
+  }
 }
 
 export async function POST(req: Request) {
@@ -90,7 +108,14 @@ export async function POST(req: Request) {
         klook: kUrl ? { url: kUrl, price, was: price ? cleanKlookPrice(official_price) : null } : null,
       };
     });
-    return NextResponse.json({ ok: true, items, ms: Date.now() - started });
+    const set: RecSet = {
+      stopId: body.stopId, travelerId: body.travelerId, items, generatedAt: new Date().toISOString(),
+      basis: { interests: body.traveler.interests, link: body.traveler.link },
+    };
+    // Save before answering, so the picks are kept even if the phone slept or the app closed
+    // while Passage was researching; the app picks them up next time the city is opened.
+    const saved = await saveRecs(body.token, recsCacheKey(body.stopId, body.travelerId, body.traveler.interests, body.traveler.link), set);
+    return NextResponse.json({ ok: true, items, set, saved, ms: Date.now() - started });
   } catch (err) {
     const timeout = err instanceof Anthropic.APIConnectionTimeoutError;
     console.error(JSON.stringify({ event: 'recs_error', ms: Date.now() - started, message: String(err) }));
